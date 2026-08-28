@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     """API key for Google Gemini (multimodal OCR and text extraction)."""
 
+    openai_api_key: str = ""
+    """API key for OpenAI (Whisper transcription, GPT-4o Vision, structured outputs)."""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
