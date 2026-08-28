@@ -11,8 +11,9 @@ from datetime import datetime, timezone
 
 from fastapi import UploadFile
 
-from app.api.v1.ingest.schemas import IngestResponse, StructuredExtraction, TransactionItem
+from app.api.v1.ingest.schemas import IngestExtractionResponse, IngestResponse, StructuredExtraction, TransactionItem
 from app.services.ai_engine import (
+    AIEngineService,
     extract_structured_data,
     extract_text_from_image,
     transcribe_audio,
@@ -99,10 +100,26 @@ async def process_upload(files: list[UploadFile], notes: str | None) -> IngestRe
 
     status = "completed" if structured_data else ("completed" if not raw_text.strip() else "partial")
 
+    # ── Day-2 AI Translation Pipeline ──────────────────────────────────────
+    ai_extraction: IngestExtractionResponse | None = None
+    if raw_text.strip():
+        try:
+            ai_service = AIEngineService()
+            ai_extraction = await ai_service.parse_unstructured_financials(raw_text)
+            logger.info(
+                "Day-2 AI extraction complete: %d transactions",
+                len(ai_extraction.transactions),
+            )
+        except Exception as exc:
+            logger.error(
+                "Day-2 AI extraction failed for request %s: %s", request_id, str(exc)
+            )
+
     return IngestResponse(
         request_id=request_id,
         status=status,
         raw_text=raw_text,
         structured_data=structured_data,
+        ai_extraction=ai_extraction,
         processed_at=datetime.now(tz=timezone.utc),
     )

@@ -4,6 +4,7 @@ Defines the structured extraction output models and the API response envelope.
 """
 
 from datetime import datetime
+from typing import List, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -65,5 +66,49 @@ class IngestResponse(BaseModel):
     structured_data: StructuredExtraction | None = None
     """Structured financial data, or None if extraction failed."""
 
+    ai_extraction: "IngestExtractionResponse | None" = None
+    """Day-2 AI translation pipeline extraction results, if available."""
+
     processed_at: datetime
     """UTC timestamp when processing completed."""
+
+
+# ── Day-2 AI Translation Pipeline Schemas ────────────────────────────────────
+
+
+class ExtractedTransaction(BaseModel):
+    """A single financial transaction parsed from trilingual raw text."""
+
+    transaction_type: Literal["business_revenue", "business_expense", "personal_expense"]
+    """High-level classification of the transaction."""
+
+    amount: float
+    """Transaction amount in LKR."""
+
+    category: str
+    """Fine-grained category (e.g., inventory, sales, transport, utility, household)."""
+
+    description: str
+    """Human-readable description of the transaction."""
+
+    confidence_score: float = Field(ge=0.0, le=1.0)
+    """Model confidence that this transaction was correctly extracted (0.0–1.0)."""
+
+    detected_language: Literal["si", "ta", "en", "singlish"]
+    """Language detected for the source text that produced this transaction."""
+
+
+class IngestExtractionResponse(BaseModel):
+    """Structured extraction result from the Day-2 AI translation pipeline."""
+
+    transactions: List[ExtractedTransaction] = []
+    """All financial transactions parsed from the input."""
+
+    raw_transcript: str = ""
+    """The original raw transcript / OCR text that was parsed."""
+
+    processing_time_ms: float = 0.0
+    """Wall-clock time in milliseconds for the extraction call."""
+
+    triangulation_hints: List[str] = []
+    """Contextual hints for downstream fraud-detection / cross-referencing."""
