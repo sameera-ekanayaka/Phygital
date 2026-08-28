@@ -22,10 +22,6 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ── Twilio ──────────────────────────────────────────────────────────────
-    twilio_auth_token: str = "your_twilio_auth_token_here"
-    """Twilio account auth token used to validate inbound webhook signatures."""
-
     # ── Cryptography ────────────────────────────────────────────────────────
     secret_key: str = "your_secret_key_here"
     """Symmetric key used for HMAC-SHA256 token signing."""
@@ -40,6 +36,13 @@ class Settings(BaseSettings):
 
     debug: bool = False
     """Enables verbose logging and permissive CORS when True."""
+
+    # ── AI Services ────────────────────────────────────────────────────────
+    groq_api_key: str = ""
+    """API key for Groq Cloud (Whisper transcription and Llama extraction)."""
+
+    google_api_key: str = ""
+    """API key for Google Gemini (multimodal OCR and text extraction)."""
 
 
 @lru_cache(maxsize=1)
