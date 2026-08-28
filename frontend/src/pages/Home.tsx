@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Clock,
   Shield,
+  Upload,
 } from "lucide-react";
 import { recentAssessments } from "../data/mockData";
 
@@ -32,7 +33,7 @@ export default function Home() {
 
       {/* Action cards */}
       <section
-        className="grid grid-cols-1 md:grid-cols-2 gap-4 fade-in-up"
+        className="grid grid-cols-1 md:grid-cols-3 gap-4 fade-in-up"
         style={{ animationDelay: "0.1s" }}
       >
         <Link
@@ -70,6 +71,25 @@ export default function Home() {
           <p className="mt-1 text-xs text-slate-400 leading-relaxed">
             Review the most recent AI credit assessment report for Somchai's
             Noodle Shop.
+          </p>
+        </Link>
+
+        <Link
+          to="/upload"
+          className="card p-6 group hover:border-gold/40 transition-all duration-200 cursor-pointer"
+        >
+          <div className="flex items-start justify-between">
+            <div className="w-11 h-11 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <Upload className="w-5 h-5 text-emerald-400" />
+            </div>
+            <ArrowRight className="w-5 h-5 text-slate-600 group-hover:text-gold group-hover:translate-x-1 transition-all" />
+          </div>
+          <h2 className="mt-4 text-base font-semibold text-white">
+            Capture Merchant Data
+          </h2>
+          <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+            Upload ledger photos, record voice notes, or type transaction details
+            for AI-powered cash-flow analysis.
           </p>
         </Link>
       </section>

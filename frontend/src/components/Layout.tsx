@@ -7,18 +7,21 @@ import {
   Lock,
   User,
   ChevronRight,
+  Upload,
 } from "lucide-react";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/scan", label: "QR Scanner", icon: ScanLine },
   { to: "/dossier", label: "Dossier", icon: FileText },
+  { to: "/upload", label: "Data Capture", icon: Upload },
 ];
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/scan": "QR Code Scanner",
   "/dossier": "AI Credit Dossier",
+  "/upload": "Data Capture",
 };
 
 export default function Layout() {
