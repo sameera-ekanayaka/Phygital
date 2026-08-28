@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from twilio.request_validator import RequestValidator
 
 from app.config import get_settings
 from app.main import app
@@ -31,20 +30,3 @@ def _reset_singletons():
     yield
     _rc.reset_redis()
     get_settings.cache_clear()
-
-
-@pytest.fixture()
-def twilio_sign():
-    """Return a factory that computes a valid Twilio webhook signature.
-
-    The returned callable accepts ``(url, params)`` and produces the same
-    HMAC-SHA1 base64 signature that Twilio sends in the
-    ``X-Twilio-Signature`` header.
-    """
-    settings = get_settings()
-    validator = RequestValidator(settings.twilio_auth_token)
-
-    def _sign(url: str, params: dict[str, str]) -> str:
-        return validator.compute_signature(url, params)
-
-    return _sign

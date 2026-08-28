@@ -2,12 +2,59 @@
 
 from __future__ import annotations
 
-import time
+import uuid
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from app.api.v1.ocr.schemas import (
+    CashFlowLineItem,
+    CashFlowStatement,
+    OcrProcessResponse,
+)
 
 OCR_URL = "/api/v1/ocr/process"
 
 
-def test_ocr_process_success(client) -> None:
+def _mock_cash_flow_response() -> OcrProcessResponse:
+    """Build a realistic mock cash-flow response for testing."""
+    revenue = [
+        CashFlowLineItem(description="Daily retail sales", amount=185_000.00),
+        CashFlowLineItem(description="Wholesale orders", amount=72_000.00),
+    ]
+    expenses = [
+        CashFlowLineItem(description="Supplier payments", amount=95_000.00),
+        CashFlowLineItem(description="Rent & utilities", amount=28_000.00),
+    ]
+    total_revenue = sum(item.amount for item in revenue)
+    total_expenses = sum(item.amount for item in expenses)
+
+    return OcrProcessResponse(
+        request_id=uuid.uuid4(),
+        status="completed",
+        cash_flow_statement=CashFlowStatement(
+            period="2026-08-01 to 2026-08-28",
+            currency="LKR",
+            business_name="Sample Grocery - Kandy",
+            revenue=revenue,
+            expenses=expenses,
+            net_cash_flow=total_revenue - total_expenses,
+            confidence_score=0.87,
+        ),
+        processed_at=datetime.now(tz=timezone.utc),
+    )
+
+
+@pytest.fixture()
+def mock_process_image():
+    """Mock the OCR process_image service function."""
+    with patch("app.api.v1.ocr.routes.process_image", new_callable=AsyncMock) as mock:
+        mock.return_value = _mock_cash_flow_response()
+        yield mock
+
+
+def test_ocr_process_success(client, mock_process_image) -> None:
     """Valid image_url must return 200 with a complete cash-flow statement."""
     resp = client.post(OCR_URL, json={"image_url": "https://example.com/ledger.jpg"})
 
@@ -32,7 +79,7 @@ def test_ocr_process_success(client) -> None:
     assert len(cfs["expenses"]) > 0
 
 
-def test_ocr_response_matches_schema(client) -> None:
+def test_ocr_response_matches_schema(client, mock_process_image) -> None:
     """Response must contain all fields declared in OcrProcessResponse."""
     resp = client.post(OCR_URL, json={"image_url": "https://example.com/receipt.png"})
     data = resp.json()
@@ -65,13 +112,3 @@ def test_ocr_missing_image_url_returns_422(client) -> None:
     """Omitting the required image_url field must yield 422."""
     resp = client.post(OCR_URL, json={})
     assert resp.status_code == 422
-
-
-def test_ocr_processing_takes_at_least_half_second(client) -> None:
-    """The mock service injects a 0.5–1.5 s delay; verify the lower bound."""
-    start = time.monotonic()
-    resp = client.post(OCR_URL, json={"image_url": "https://example.com/slow.jpg"})
-    elapsed = time.monotonic() - start
-
-    assert resp.status_code == 200
-    assert elapsed >= 0.5, f"Expected ≥ 0.5 s delay, got {elapsed:.3f} s"
