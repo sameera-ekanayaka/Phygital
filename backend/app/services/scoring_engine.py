@@ -45,6 +45,7 @@ def compute_financial_metrics(
     transactions: List[ExtractedTransaction],
     requested_loan_amount: float = 250_000.0,
     loan_tenor_months: int = 12,
+    owner_demographics: dict | None = None,
 ) -> dict:
     """Derive key financial metrics from a list of extracted transactions.
 
@@ -92,7 +93,10 @@ def compute_financial_metrics(
     recommended_loan_ceiling = max(recommended_loan_ceiling, 0.0)
 
     # ── NCGI eligibility ─────────────────────────────────────────────────
-    if dscr >= 1.5:
+    if owner_demographics and owner_demographics.get("female_owned"):
+        # NCGI Liya Shakthi: 80% guarantee for women-owned micro-enterprises
+        ncgi_eligibility_percent = 80.0 if dscr > 0 else 0.0
+    elif dscr >= 1.5:
         ncgi_eligibility_percent = 80.0
     elif dscr >= 1.25:
         ncgi_eligibility_percent = 75.0
@@ -156,17 +160,37 @@ def compute_financial_metrics(
 def generate_explainability_notes(
     metrics: dict,
     transactions: List[ExtractedTransaction],
+    owner_demographics: dict | None = None,
 ) -> List[str]:
     """Produce deterministic, human-readable explanation points.
 
     Args:
         metrics: Output of :func:`compute_financial_metrics`.
         transactions: The original transaction list.
+        owner_demographics: Optional dict with ``female_owned`` flag for NCGI Liya Shakthi.
 
     Returns:
         A list of plain-English bullet-style strings.
     """
     notes: List[str] = []
+
+    # ── Agricultural pattern detection ────────────────────────────────────
+    has_agricultural = any(
+        "agricultural" in t.category.lower() or "harvest" in t.description.lower()
+        for t in transactions
+    )
+    if has_agricultural:
+        notes.append(
+            "Consistent agricultural supply cycles detected — "
+            "seasonal revenue patterns typical for agri-SMEs."
+        )
+
+    # ── NCGI Liya Shakthi eligibility note ────────────────────────────────
+    if owner_demographics and owner_demographics.get("female_owned"):
+        notes.append(
+            "NCGI Liya Shakthi eligibility confirmed — "
+            "80% credit guarantee for women-owned micro-enterprise."
+        )
 
     margin = metrics["operating_margin_percent"]
     notes.append(f"Operating margin at {margin:.1f}% — {'healthy' if margin >= 20 else 'thin'} for a micro-SME.")

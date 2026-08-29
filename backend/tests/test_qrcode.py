@@ -109,3 +109,36 @@ def test_verify_token_not_in_redis_returns_410(client) -> None:
 
     resp = client.get(f"{VERIFY_URL}/{token}")
     assert resp.status_code == 410
+
+
+def test_binithi_qr_72_hour_encrypted_jwt(client) -> None:
+    """Binithi persona: generate a 72-hour HMAC-signed JWT and verify it end-to-end."""
+    from datetime import timedelta
+
+    cash_flow_id = "550e8400-e29b-41d4-a716-446655440099"
+
+    # Generate the QR token
+    before = datetime.now(timezone.utc)
+    resp = client.post(GENERATE_URL, json={"cash_flow_id": cash_flow_id})
+    after = datetime.now(timezone.utc)
+
+    assert resp.status_code == 200
+    data = resp.json()
+
+    token = data["token"]
+    assert isinstance(token, str) and len(token) > 0
+
+    # Verify expires_at is approximately 72 hours (4320 minutes) in the future
+    expires_at = datetime.fromisoformat(data["expires_at"])
+    assert expires_at.tzinfo is not None
+    expected_low = before + timedelta(hours=71, minutes=58)
+    expected_high = after + timedelta(hours=72, minutes=2)
+    assert expected_low <= expires_at <= expected_high, (
+        f"expires_at {expires_at} not within 72h ±2min window"
+    )
+
+    # Verify the token via the verify endpoint
+    verify_resp = client.get(f"{VERIFY_URL}/{token}")
+    assert verify_resp.status_code == 200
+    verify_data = verify_resp.json()
+    assert verify_data["cash_flow_id"] == cash_flow_id

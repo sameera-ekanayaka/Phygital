@@ -13,6 +13,7 @@ import pytest
 from app.services.scoring_engine import (
     compute_financial_metrics,
     derive_recommendation,
+    generate_explainability_notes,
     _emi,
     _MONTHLY_RATE,
 )
@@ -372,3 +373,71 @@ class TestScoringEngine:
         assert metrics["dscr"] == 0.0  # NOI=0 → DSCR=0
         assert metrics["risk_score"] == 0.0
         assert metrics["ncgi_eligibility_percent"] == 0.0
+
+
+# ── Binithi's Harvest Traders — NCGI Liya Shakthi E2E ───────────────────────
+
+
+class TestBinithiHarvestTraders:
+    """End-to-end scoring tests for the Binithi's Harvest Traders demo persona.
+
+    Verifies NCGI Liya Shakthi 80% guarantee for women-owned agri-SMEs and
+    the agricultural triangulation hints produced by the explainability engine.
+    """
+
+    @staticmethod
+    def _binithi_transactions():
+        """Build ExtractedTransaction objects for Binithi's Harvest Traders."""
+        from app.api.v1.ingest.schemas import ExtractedTransaction
+        return [
+            ExtractedTransaction(
+                transaction_type="business_revenue", amount=15000.0,
+                category="agricultural_sale",
+                description="Harvest sales - 50 kilos paddy",
+                confidence_score=0.88, detected_language="singlish",
+            ),
+            ExtractedTransaction(
+                transaction_type="business_expense", amount=2000.0,
+                category="transport",
+                description="Lorry transport for harvest delivery",
+                confidence_score=0.85, detected_language="singlish",
+            ),
+            ExtractedTransaction(
+                transaction_type="personal_expense", amount=3500.0,
+                category="household",
+                description="Household groceries - gedara kema",
+                confidence_score=0.75, detected_language="singlish",
+            ),
+        ]
+
+    def test_binithi_ncgi_liya_shakthi_80_percent(self) -> None:
+        """Female-owned agri-SME must qualify for NCGI Liya Shakthi 80% guarantee."""
+        txns = self._binithi_transactions()
+        metrics = compute_financial_metrics(
+            txns, 100_000, 12, owner_demographics={"female_owned": True}
+        )
+
+        assert metrics["monthly_revenue"] == 15000.0
+        assert metrics["monthly_operating_expense"] == 2000.0
+        assert metrics["monthly_personal_drawings"] == 3500.0
+        assert metrics["net_operating_income"] == 13000.0
+        assert metrics["ncgi_eligibility_percent"] == 80.0  # Liya Shakthi
+
+    def test_binithi_explainability_triangulation_hints(self) -> None:
+        """Agricultural + Liya Shakthi notes must appear as first triangulation hints."""
+        txns = self._binithi_transactions()
+        metrics = compute_financial_metrics(
+            txns, 100_000, 12, owner_demographics={"female_owned": True}
+        )
+        notes = generate_explainability_notes(
+            metrics, txns, owner_demographics={"female_owned": True}
+        )
+
+        assert len(notes) >= 2
+        notes_lower = [n.lower() for n in notes]
+        assert any("agricultural" in n for n in notes_lower), (
+            "Expected an agricultural supply-cycle note"
+        )
+        assert any("liya shakthi" in n or "women-owned" in n for n in notes_lower), (
+            "Expected an NCGI Liya Shakthi / women-owned note"
+        )
