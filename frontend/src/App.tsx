@@ -1,14 +1,24 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-const Home = lazy(() => import("./pages/Home"));
-const Scanner = lazy(() => import("./pages/Scanner"));
-const Dossier = lazy(() => import("./pages/Dossier"));
-const Upload = lazy(() => import("./pages/Upload"));
-const Login = lazy(() => import("./pages/Login"));
+// Layouts
+const BorrowerLayout = lazy(() => import("./components/BorrowerLayout"));
+const BankLayout = lazy(() => import("./components/BankLayout"));
+
+// Pages
+const Landing = lazy(() => import("./pages/Landing"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Borrower portal
+const BorrowerUpload = lazy(() => import("./pages/borrower/BorrowerUpload"));
+const BorrowerProcessing = lazy(() => import("./pages/borrower/BorrowerProcessing"));
+const BorrowerSuccess = lazy(() => import("./pages/borrower/BorrowerSuccess"));
+
+// Bank portal
+const BankLogin = lazy(() => import("./pages/bank/BankLogin"));
+const BankVerify = lazy(() => import("./pages/bank/BankVerify"));
+const BankDossier = lazy(() => import("./pages/bank/BankDossier"));
 
 function LoadingSpinner() {
   return (
@@ -23,14 +33,27 @@ export default function App() {
     <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/scan" element={<Scanner />} />
-            <Route path="/dossier" element={<Dossier />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="*" element={<NotFound />} />
+          {/* Global entry */}
+          <Route path="/" element={<Landing />} />
+
+          {/* Borrower portal — mobile-first, no auth */}
+          <Route element={<BorrowerLayout />}>
+            <Route path="/borrower/upload" element={<BorrowerUpload />} />
+            <Route path="/borrower/processing" element={<BorrowerProcessing />} />
+            <Route path="/borrower/success" element={<BorrowerSuccess />} />
           </Route>
+
+          {/* Bank portal — login outside auth wall */}
+          <Route path="/bank/login" element={<BankLogin />} />
+
+          {/* Bank portal — desktop-first, auth wall via BankLayout */}
+          <Route element={<BankLayout />}>
+            <Route path="/bank/verify" element={<BankVerify />} />
+            <Route path="/bank/dossier" element={<BankDossier />} />
+          </Route>
+
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>
