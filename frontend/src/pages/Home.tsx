@@ -52,8 +52,8 @@ export default function Home() {
             Start New Assessment
           </h2>
           <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-            Scan the merchant's QR code to retrieve the AI-generated credit
-            dossier and appraisal cheat sheet.
+            Enter the merchant's verification code to retrieve the AI-generated
+            credit dossier and appraisal cheat sheet.
           </p>
         </Link>
 

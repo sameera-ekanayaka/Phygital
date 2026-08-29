@@ -366,10 +366,10 @@ export default function Upload() {
       const nowMs = Date.now();
       setQrCountdown(Math.max(0, Math.floor((expiryMs - nowMs) / 1000)));
 
-      addToast("Cryptographic QR code generated successfully!", "success");
+      addToast("Verification code generated successfully!", "success");
     } catch (err: unknown) {
       const msg = extractErrorMessage(err);
-      addToast(`QR generation failed: ${msg}`, "error");
+      addToast(`Code generation failed: ${msg}`, "error");
     } finally {
       setQrLoading(false);
     }
@@ -461,7 +461,7 @@ export default function Upload() {
             <div className="flex items-center gap-2">
               <QrCode className="w-5 h-5 text-gold" />
               <h2 className="text-base font-bold text-white">
-                Cryptographic QR Code
+                Verification Code
               </h2>
             </div>
             <button
@@ -472,25 +472,16 @@ export default function Upload() {
             </button>
           </div>
 
-          {/* QR Image */}
+          {/* Verification Code */}
           <div className="flex justify-center">
-            <div className="bg-white p-4 rounded-xl">
-              <img
-                src={`data:image/png;base64,${qrData.qr_code_base64}`}
-                alt="QR Code"
-                className="w-48 h-48"
-              />
+            <div className="bg-navy-700 rounded-xl px-6 py-5 text-center">
+              <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium mb-2">
+                Share this code with the bank officer
+              </p>
+              <p className="text-2xl font-mono font-bold text-gold tracking-widest">
+                {qrData.verification_code}
+              </p>
             </div>
-          </div>
-
-          {/* Verify URL */}
-          <div className="space-y-1">
-            <p className="text-[11px] text-slate-500 uppercase tracking-wider font-medium">
-              Verify URL
-            </p>
-            <p className="text-xs text-slate-300 bg-navy-700 rounded-lg px-3 py-2 break-all font-mono">
-              {qrData.verify_url}
-            </p>
           </div>
 
           {/* Countdown */}

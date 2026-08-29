@@ -1,4 +1,4 @@
-"""Pydantic v2 schemas for QR code generation and verification."""
+"""Pydantic v2 schemas for verification code generation and token verification."""
 
 from datetime import datetime
 from uuid import UUID
@@ -7,23 +7,26 @@ from pydantic import BaseModel, Field
 
 
 class QrGenerateRequest(BaseModel):
-    """Request body for QR code generation."""
+    """Request body for verification code generation."""
 
     cash_flow_id: UUID = Field(..., description="UUID of the cash-flow record to encode.")
     expiry_minutes: int = Field(
         default=4320,
         ge=1,
-        description="Minutes until the QR code / token expires (default 72 hours).",
+        description="Minutes until the verification code / token expires (default 72 hours).",
     )
 
 
-class QrGenerateResponse(BaseModel):
-    """Response returned after successful QR code generation."""
+class VerificationGenerateResponse(BaseModel):
+    """Response returned after successful verification code generation."""
 
-    qr_code_base64: str = Field(..., description="Base64-encoded PNG image of the QR code.")
+    verification_code: str = Field(..., description="Human-readable verification code (e.g. PHYG-A3F8-K9M2).")
     token: str = Field(..., description="HMAC-signed verification token.")
     expires_at: datetime = Field(..., description="ISO 8601 timestamp when the token expires.")
-    verify_url: str = Field(..., description="Public URL that the QR code encodes.")
+
+
+# Backward-compatible alias
+QrGenerateResponse = VerificationGenerateResponse
 
 
 class QrVerifyResponse(BaseModel):
@@ -31,6 +34,14 @@ class QrVerifyResponse(BaseModel):
 
     cash_flow_id: str = Field(..., description="UUID of the linked cash-flow record.")
     cash_flow_data: dict = Field(..., description="The full cash-flow JSON stored in Redis.")
+
+
+class VerificationResolveResponse(BaseModel):
+    """Response returned when a verification code is resolved — includes the HMAC token."""
+
+    cash_flow_id: str = Field(..., description="UUID of the linked cash-flow record.")
+    cash_flow_data: dict = Field(..., description="The full cash-flow JSON stored in Redis.")
+    token: str = Field(..., description="HMAC-signed token for downstream dossier navigation.")
 
 
 class QrVerifyErrorResponse(BaseModel):
