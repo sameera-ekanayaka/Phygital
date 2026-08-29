@@ -112,3 +112,43 @@ def test_upload_no_files_no_notes(client):
     data = response.json()
     assert data["raw_text"] == ""
     assert data["structured_data"] is None
+
+
+# Mock structured extraction for Binithi's Harvest Traders (Singlish agri-SME)
+BINITHI_EXTRACTION = {
+    "business_revenue": [
+        {"amount": 15000.0, "category": "agricultural_sale", "description": "Harvest sales - 50 kilos", "source_confidence": 0.88}
+    ],
+    "business_expense": [
+        {"amount": 2000.0, "category": "transport", "description": "Lorry transport", "source_confidence": 0.85}
+    ],
+    "personal_expense": [
+        {"amount": 3500.0, "category": "household", "description": "Household groceries", "source_confidence": 0.75}
+    ],
+    "currency": "LKR",
+    "business_name": "Binithi's Harvest Traders",
+    "overall_confidence": 0.83,
+}
+
+
+@patch("app.api.v1.ingest.service.extract_structured_data", new_callable=AsyncMock)
+def test_binithi_harvest_traders_singlish_ingestion(mock_extract, client):
+    """Singlish ingestion for Binithi's Harvest Traders — agri-SME persona."""
+    mock_extract.return_value = BINITHI_EXTRACTION
+
+    response = client.post(
+        "/api/v1/ingest/upload",
+        data={"notes": "Ada harvest eken 50 kilos dunna Rs 15000. Lorry transport ekata Rs 2000 giya. Gedara kema badu ganna Rs 3500."},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "completed"
+    assert data["structured_data"] is not None
+
+    sd = data["structured_data"]
+    assert sd["business_revenue"][0]["amount"] == 15000.0
+    assert sd["business_expense"][0]["amount"] == 2000.0
+    assert sd["personal_expense"][0]["amount"] == 3500.0
+
+    mock_extract.assert_called_once()
