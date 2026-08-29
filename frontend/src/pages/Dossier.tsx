@@ -114,7 +114,13 @@ const DEFAULT_DSCR_HISTORY = [
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function CustomTooltip({ active, payload, label }: any) {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number; name: string }>;
+  label?: string;
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-navy-800 border border-navy-600 rounded-lg px-3 py-2 shadow-xl">
@@ -126,24 +132,24 @@ function CustomTooltip({ active, payload, label }: any) {
   );
 }
 
-function parseDossierData(raw: Record<string, any>): DossierData {
+function parseDossierData(raw: Record<string, unknown>): DossierData {
   return {
-    borrower_name: raw.borrower_name ?? "Unknown Borrower",
-    business_type: raw.business_type ?? "N/A",
-    masked_nic: raw.masked_nic ?? "****----",
-    expires_at: raw.expires_at ?? new Date(Date.now() + 72 * 3600_000).toISOString(),
+    borrower_name: typeof raw.borrower_name === "string" ? raw.borrower_name : "Unknown Borrower",
+    business_type: typeof raw.business_type === "string" ? raw.business_type : "N/A",
+    masked_nic: typeof raw.masked_nic === "string" ? raw.masked_nic : "****----",
+    expires_at: typeof raw.expires_at === "string" ? raw.expires_at : new Date(Date.now() + 72 * 3600_000).toISOString(),
     risk_score: typeof raw.risk_score === "number" ? raw.risk_score : 0,
     dscr: typeof raw.dscr === "number" ? raw.dscr : 0,
     net_cash_flow: typeof raw.net_cash_flow === "number" ? raw.net_cash_flow : 0,
     monthly_operating_margin:
       typeof raw.monthly_operating_margin === "number" ? raw.monthly_operating_margin : 0,
-    currency: raw.currency ?? "LKR",
+    currency: typeof raw.currency === "string" ? raw.currency : "LKR",
     dscr_history:
       Array.isArray(raw.dscr_history) && raw.dscr_history.length > 0
-        ? raw.dscr_history
+        ? raw.dscr_history as DossierData["dscr_history"]
         : DEFAULT_DSCR_HISTORY,
-    ai_reasoning: Array.isArray(raw.ai_reasoning) ? raw.ai_reasoning : [],
-    interview_prompts: Array.isArray(raw.interview_prompts) ? raw.interview_prompts : [],
+    ai_reasoning: Array.isArray(raw.ai_reasoning) ? raw.ai_reasoning as string[] : [],
+    interview_prompts: Array.isArray(raw.interview_prompts) ? raw.interview_prompts as DossierData["interview_prompts"] : [],
     ncgi_eligible: Boolean(raw.ncgi_eligible),
     ncgi_coverage_percent:
       typeof raw.ncgi_coverage_percent === "number"
@@ -220,7 +226,7 @@ export default function Dossier() {
       const res = await verifyQR(t);
       setData(parseDossierData(res.cash_flow_data));
       setState("success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       const axiosErr = err as AxiosError;
       const status = axiosErr.response?.status;
       if (status === 410) {
@@ -228,7 +234,7 @@ export default function Dossier() {
       } else {
         setErrorText(
           axiosErr.response?.data
-            ? (axiosErr.response.data as any)?.detail ?? "Verification failed."
+            ? (axiosErr.response.data as Record<string, unknown>)?.detail as string ?? "Verification failed."
             : "Network error — could not reach the server.",
         );
         setState("error");

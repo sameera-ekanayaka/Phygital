@@ -68,11 +68,12 @@ export default function Scanner() {
         );
 
         if (mounted) setStatus("scanning");
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (mounted) {
           setStatus("error");
+          const msg = err instanceof Error ? err.message : "";
           setErrorMsg(
-            err?.message?.includes("Permission")
+            msg.includes("Permission")
               ? "Camera permission denied. Please allow camera access and reload."
               : "Unable to access camera. Ensure a camera is connected and not in use.",
           );

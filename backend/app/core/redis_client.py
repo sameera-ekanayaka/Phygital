@@ -44,7 +44,11 @@ def get_redis() -> "Redis":
         client.ping()  # verify connectivity
         logger.info("Connected to Redis at %s", settings.redis_url)
         _client = client
-    except (redis.ConnectionError, redis.TimeoutError, OSError):
+    except (redis.ConnectionError, redis.TimeoutError, OSError) as exc:
+        if not settings.debug:
+            raise RuntimeError(
+                "Redis is required in production but not available"
+            ) from exc
         logger.warning(
             "Redis unavailable at %s — falling back to fakeredis.",
             settings.redis_url,

@@ -5,10 +5,11 @@ Accepts images, audio files, and text notes for AI processing.
 
 import logging
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 
 from app.api.v1.ingest.schemas import IngestResponse
 from app.api.v1.ingest.service import process_upload
+from app.core.auth import get_current_user
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ async def upload(
     request: Request,
     files: list[UploadFile] = File(default=[]),
     notes: str = Form(default=""),
+    current_user: dict = Depends(get_current_user),
 ) -> IngestResponse:
     """Upload merchant financial data for AI processing.
 
@@ -33,9 +35,26 @@ async def upload(
         request: FastAPI request (required for rate limiter).
         files: Uploaded image and/or audio files.
         notes: Optional text notes in Sinhala, Tamil, or English.
+        current_user: Authenticated user from JWT token.
 
     Returns:
         IngestResponse with extracted raw text and structured financial data.
     """
+    # ── File count and size validation ─────────────────────────────────────
+    MAX_FILES = 10
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    if len(files) > MAX_FILES:
+        raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES} files allowed per request.")
+
+    for f in files:
+        content = await f.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File '{f.filename}' exceeds the 10 MB size limit.",
+            )
+        await f.seek(0)  # Reset file pointer for downstream processing
+
     logger.info("Ingest upload: %d files, notes_length=%d", len(files), len(notes))
     return await process_upload(files, notes)

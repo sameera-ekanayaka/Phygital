@@ -139,6 +139,8 @@ export default function Upload() {
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [audioClips, setAudioClips] = useState<Blob[]>([]);
+  const [audioClipUrls, setAudioClipUrls] = useState<string[]>([]);
+  const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<PageStatus>("idle");
   const [errorMessage, setErrorMessage] = useState("");
@@ -229,6 +231,23 @@ export default function Upload() {
     },
     [addImages],
   );
+
+  /* --- audio blob URL lifecycle --- */
+  useEffect(() => {
+    if (audioBlob) {
+      const url = URL.createObjectURL(audioBlob);
+      setPreviewAudioUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewAudioUrl(null);
+    }
+  }, [audioBlob]);
+
+  useEffect(() => {
+    const urls = audioClips.map((clip) => URL.createObjectURL(clip));
+    setAudioClipUrls(urls);
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, [audioClips]);
 
   /* --- audio handlers --- */
   const addAudioClip = useCallback(() => {
@@ -378,6 +397,8 @@ export default function Upload() {
     setImageUrls([]);
     setImageError(null);
     setAudioClips([]);
+    setAudioClipUrls([]);
+    setPreviewAudioUrl(null);
     setNotes("");
     setIngestResponse(null);
     setEditableTransactions([]);
@@ -950,11 +971,11 @@ export default function Upload() {
           )}
 
           {/* Stopped — preview + add / discard */}
-          {recStatus === "stopped" && audioBlob && (
+          {recStatus === "stopped" && audioBlob && previewAudioUrl && (
             <div className="w-full flex flex-col items-center gap-3">
               <audio
                 controls
-                src={URL.createObjectURL(audioBlob)}
+                src={previewAudioUrl}
                 className="w-full max-w-xs"
               />
               <div className="flex items-center gap-3">
@@ -990,7 +1011,7 @@ export default function Upload() {
               >
                 <audio
                   controls
-                  src={URL.createObjectURL(clip)}
+                  src={audioClipUrls[i]}
                   className="flex-1 h-8"
                 />
                 {!isDisabled && (

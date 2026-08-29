@@ -2,7 +2,8 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from starlette.requests import Request
 
 from app.api.v1.qrcode.schemas import (
     QrGenerateRequest,
@@ -10,6 +11,8 @@ from app.api.v1.qrcode.schemas import (
     QrVerifyResponse,
 )
 from app.api.v1.qrcode.service import generate_qr, verify_token
+from app.core.auth import get_current_user
+from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,12 @@ router = APIRouter(prefix="/qrcode", tags=["qrcode"])
     response_model=QrGenerateResponse,
     summary="Generate a secure, expiring QR code for a cash-flow record",
 )
-async def qr_generate(payload: QrGenerateRequest) -> QrGenerateResponse:
+@limiter.limit("20/minute")
+async def qr_generate(
+    request: Request,
+    payload: QrGenerateRequest,
+    current_user: dict = Depends(get_current_user),
+) -> QrGenerateResponse:
     """Generate an HMAC-signed QR code linked to a cash-flow statement.
 
     The QR code encodes a verification URL that, when scanned, retrieves the
@@ -47,7 +55,12 @@ async def qr_generate(payload: QrGenerateRequest) -> QrGenerateResponse:
     summary="Verify a QR token and return the linked cash-flow data",
     responses={410: {"description": "Token expired or not found."}},
 )
-async def qr_verify(token: str) -> QrVerifyResponse:
+@limiter.limit("60/minute")
+async def qr_verify(
+    request: Request,
+    token: str,
+    current_user: dict = Depends(get_current_user),
+) -> QrVerifyResponse:
     """Look up a QR verification token and return the stored cash-flow JSON.
 
     Args:

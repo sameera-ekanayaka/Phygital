@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { recentAssessments } from "../data/mockData";
 
+const showMockData = import.meta.env.DEV;
+
 export default function Home() {
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -117,6 +119,7 @@ export default function Home() {
       </section>
 
       {/* Recent assessments */}
+      {showMockData && (
       <section
         className="fade-in-up"
         style={{ animationDelay: "0.3s" }}
@@ -183,6 +186,7 @@ export default function Home() {
           </table>
         </div>
       </section>
+      )}
     </div>
   );
 }
