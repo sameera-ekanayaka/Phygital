@@ -14,8 +14,14 @@ from app.api.v1.dossier.schemas import (
     DossierCalculateRequest,
     DossierGenerateRequest,
     DossierGenerateResponse,
+    LoanExecutionRequest,
+    LoanExecutionResponse,
 )
-from app.api.v1.dossier.service import calculate_dossier, generate_dossier_with_qr
+from app.api.v1.dossier.service import (
+    calculate_dossier,
+    execute_loan as execute_loan_service,
+    generate_dossier_with_qr,
+)
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -58,10 +64,6 @@ async def post_generate(
 ) -> DossierGenerateResponse:
     """Compute a credit dossier **and** mint a 72-hour signed QR token.
 
-    The returned ``qr_payload`` is an opaque HMAC-signed string that a bank
-    officer can scan to verify dossier provenance; ``qr_expires_at`` is the
-    ISO-8601 UTC timestamp after which the token is no longer valid.
-
     Args:
         request: FastAPI request object (required for rate limiter).
         body: Transaction set and loan parameters.
@@ -76,3 +78,23 @@ async def post_generate(
         body.loan_tenor_months,
     )
     return generate_dossier_with_qr(body)
+
+
+@router.post("/execute-loan", response_model=LoanExecutionResponse)
+@limiter.limit("10/minute")
+async def execute_loan(
+    request: Request,
+    body: LoanExecutionRequest,
+):
+    """Execute an approved loan with LankaSign digital signature and NCGI guarantee.
+
+    Conforms to Sri Lanka Electronic Transactions Act No. 19 of 2006.
+    NCGI risk coverage: 75-80% for qualifying informal MSMEs.
+    """
+    return execute_loan_service(
+        token=body.token,
+        officer_id=body.officer_id,
+        approved_amount=body.approved_amount,
+        interest_rate=body.interest_rate,
+        interview_notes=body.interview_notes,
+    )

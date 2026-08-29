@@ -84,3 +84,31 @@ class DossierGenerateResponse(BaseModel):
     dossier: CreditDossierResponse
     qr_payload: str = Field(description="Signed token (opaque to client) for the QR code")
     qr_expires_at: str = Field(description="ISO-8601 UTC expiry timestamp (72 hours)")
+
+
+# ── Loan Execution ────────────────────────────────────────────────────────────
+
+
+class LoanExecutionRequest(BaseModel):
+    """Request to execute a loan after officer approval."""
+
+    token: str
+    officer_id: str
+    approved_amount: float = Field(..., gt=0, description="Approved loan amount in LKR")
+    interest_rate: float = Field(..., gt=0, le=100, description="Annual interest rate percentage")
+    interview_notes: List[str] = Field(default_factory=list, description="Officer's field interview notes")
+
+
+class LoanExecutionResponse(BaseModel):
+    """Response after successful loan execution with LankaSign digital signature."""
+
+    contract_id: str
+    lankasign_cert_hash: str
+    timestamp: str
+    ncgi_guarantee_ref: str
+    ncgi_coverage_percent: float
+    approved_amount: float
+    interest_rate: float
+    officer_id: str
+    merchant_name: str
+    status: str = "APPROVED_AND_EXECUTED"

@@ -4,6 +4,8 @@ Orchestrates the :mod:`scoring_engine` to build a full :class:`CreditDossierResp
 and optionally mints a 72-hour HMAC-signed QR payload via :mod:`core.security`.
 """
 
+import hashlib
+import json
 import logging
 import statistics
 import uuid
@@ -16,8 +18,10 @@ from app.api.v1.dossier.schemas import (
     DossierGenerateResponse,
     FieldInterviewPrompt,
     FinancialMetrics,
+    LoanExecutionResponse,
 )
-from app.core.security import create_signed_token
+from app.core.redis_client import get_redis, store_with_ttl
+from app.core.security import create_signed_token, verify_token
 from app.services.scoring_engine import (
     compute_financial_metrics,
     derive_recommendation,
@@ -25,6 +29,7 @@ from app.services.scoring_engine import (
     generate_explainability_notes,
     generate_field_interview_prompts,
 )
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +137,23 @@ def generate_dossier_with_qr(
         expiry_minutes=_QR_TTL_MINUTES,
     )
 
+    # Store dossier data in Redis so execute_loan can retrieve it
+    r = get_redis()
+    store_payload = {
+        "cash_flow_id": dossier_id,
+        "cash_flow_data": {
+            "merchant_name": request.merchant_name or "Unknown",
+            "merchant_id": request.merchant_id,
+            "metrics": dossier.metrics.model_dump(),
+            "recommendation": dossier.recommendation,
+            "explainability_notes": dossier.explainability_notes,
+            "anomaly_flags": dossier.anomaly_flags,
+            "transaction_count": dossier.transaction_count,
+            "avg_confidence": dossier.avg_confidence,
+        },
+    }
+    r.setex(f"phygital:qr:{token}", _QR_TTL_MINUTES * 60, json.dumps(store_payload))
+
     qr_expires_at = datetime.fromtimestamp(expires_at_unix, tz=timezone.utc).isoformat()
 
     logger.info(
@@ -144,4 +166,110 @@ def generate_dossier_with_qr(
         dossier=dossier,
         qr_payload=token,
         qr_expires_at=qr_expires_at,
+    )
+
+
+def execute_loan(
+    token: str,
+    officer_id: str,
+    approved_amount: float,
+    interest_rate: float,
+    interview_notes: list[str],
+) -> LoanExecutionResponse:
+    """Execute an approved loan with LankaSign digital signature and NCGI guarantee.
+
+    Verifies the QR token, retrieves the stored dossier data from Redis,
+    computes the NCGI coverage, generates a contract ID and NCGI reference,
+    simulates a LankaSign CA digital signature (SHA-256), and persists the
+    executed loan record in Redis with a 30-day TTL.
+
+    Args:
+        token: The HMAC-signed QR verification token.
+        officer_id: Bank officer identifier.
+        approved_amount: Approved loan amount in LKR.
+        interest_rate: Annual interest rate percentage.
+        interview_notes: Officer's field interview notes.
+
+    Returns:
+        A :class:`LoanExecutionResponse` with contract and guarantee details.
+
+    Raises:
+        HTTPException(400): If the token is invalid/expired or the loan is
+            not eligible for NCGI guarantee.
+    """
+    # a. Verify the QR token via the security module.
+    payload = verify_token(token)
+    if payload is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired QR token.")
+
+    # b. Retrieve stored dossier data from Redis (key pattern used by the QR flow).
+    r = get_redis()
+    raw: str | None = r.get(f"phygital:qr:{token}")
+    if raw is None:
+        raise HTTPException(status_code=400, detail="Token data not found in Redis (evicted or expired).")
+    stored_data: dict = json.loads(raw)
+
+    # c. Extract NCGI eligibility from stored dossier metrics.
+    cash_flow_data = stored_data.get("cash_flow_data") or {}
+    metrics = cash_flow_data.get("metrics") or {}
+    ncgi_eligibility_percent: float = metrics.get("ncgi_eligibility_percent", 0)
+    if ncgi_eligibility_percent == 0:
+        raise HTTPException(status_code=400, detail="Loan not eligible for NCGI guarantee.")
+
+    # Extract merchant name from stored data.
+    merchant_name: str = cash_flow_data.get("merchant_name") or stored_data.get("merchant_name") or "Unknown Merchant"
+
+    # d. Generate contract ID.
+    contract_id = f"CTR-{uuid.uuid4().hex[:12].upper()}"
+
+    # e. Generate NCGI guarantee reference.
+    ncgi_guarantee_ref = f"NCGI-{datetime.now().year}-{uuid.uuid4().hex[:8].upper()}"
+
+    # f. Simulate LankaSign CA digital signature.
+    #    Simulates LankaSign CA digital signature per Sri Lanka Electronic Transactions Act No. 19 of 2006.
+    timestamp = datetime.now(timezone.utc).isoformat()
+    signing_payload = f"{contract_id}|{officer_id}|{approved_amount}|{timestamp}"
+    lankasign_cert_hash = hashlib.sha256(signing_payload.encode("utf-8")).hexdigest()
+
+    # g. Store the executed loan record in Redis with a 30-day TTL.
+    loan_record = {
+        "contract_id": contract_id,
+        "lankasign_cert_hash": lankasign_cert_hash,
+        "timestamp": timestamp,
+        "ncgi_guarantee_ref": ncgi_guarantee_ref,
+        "ncgi_coverage_percent": ncgi_eligibility_percent,
+        "approved_amount": approved_amount,
+        "interest_rate": interest_rate,
+        "officer_id": officer_id,
+        "merchant_name": merchant_name,
+        "status": "APPROVED_AND_EXECUTED",
+        "interview_notes": interview_notes,
+    }
+    if not store_with_ttl(
+        key=f"loan_contract:{contract_id}",
+        value=json.dumps(loan_record),
+        ttl_seconds=30 * 24 * 3600,  # 30 days
+    ):
+        raise HTTPException(status_code=503, detail="Failed to persist loan contract. Please retry.")
+
+    logger.info(
+        "Loan executed: contract=%s, officer=%s, amount=%.2f, ncgi=%.0f%%",
+        contract_id,
+        officer_id,
+        approved_amount,
+        ncgi_eligibility_percent,
+    )
+
+    # h. Return the response.
+    return LoanExecutionResponse(
+        contract_id=contract_id,
+        lankasign_cert_hash=lankasign_cert_hash,
+        timestamp=timestamp,
+        ncgi_guarantee_ref=ncgi_guarantee_ref,
+        ncgi_coverage_percent=ncgi_eligibility_percent,
+        approved_amount=approved_amount,
+        interest_rate=interest_rate,
+        officer_id=officer_id,
+        merchant_name=merchant_name,
+        status="APPROVED_AND_EXECUTED",
     )
