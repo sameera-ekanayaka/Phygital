@@ -19,6 +19,19 @@ export default {
           DEFAULT: "#14b8a6",
           light: "#5eead4",
         },
+        /* Warm borrower-portal palette */
+        cream: {
+          50: "#fdf8f0",
+          100: "#faf3e8",
+          200: "#f0e6d2",
+          300: "#e5d5b8",
+        },
+        warm: {
+          600: "#8b6f47",
+          700: "#5c4a2e",
+          800: "#3d3220",
+          900: "#2a2318",
+        },
       },
       fontFamily: {
         sans: [
@@ -28,6 +41,15 @@ export default {
           "Segoe UI",
           "Roboto",
           "sans-serif",
+        ],
+        display: [
+          "Outfit",
+          "system-ui",
+          "sans-serif",
+        ],
+        handwritten: [
+          "Caveat",
+          "cursive",
         ],
       },
     },

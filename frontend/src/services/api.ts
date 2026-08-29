@@ -70,9 +70,9 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.includes("/login")) {
+    if (error.response?.status === 401 && !window.location.pathname.includes("/bank/login")) {
       sessionStorage.removeItem("phygital_access_token");
-      window.location.href = "/login";
+      window.location.href = "/bank/login";
     }
     return Promise.reject(error);
   },

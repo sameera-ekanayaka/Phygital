@@ -35,7 +35,7 @@
   }
 }
 
-/* QR scanner animation */
+/* Verification animation */
 @keyframes scan-line {
   0%, 100% { top: 0%; }
   50% { top: calc(100% - 3px); }
@@ -76,4 +76,142 @@
 }
 .animate-pulse-recording {
   animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+/* Borrower Portal — warm paper-like theme */
+.borrower-portal {
+  font-family: "Outfit", system-ui, sans-serif;
+  color: #2a2318;
+}
+
+.borrower-portal .b-card {
+  background: #fdf8f0;
+  border: 1px solid #e5d5b8;
+  border-radius: 0.75rem;
+  box-shadow:
+    0 1px 3px rgba(139, 111, 71, 0.08),
+    0 8px 24px rgba(139, 111, 71, 0.06);
+}
+
+.borrower-portal .b-btn-primary {
+  background: #0d9488;
+  color: #fff;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.borrower-portal .b-btn-primary:hover {
+  background: #0f766e;
+}
+.borrower-portal .b-btn-primary:active {
+  transform: scale(0.96);
+}
+.borrower-portal .b-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.borrower-portal .b-btn-secondary {
+  background: transparent;
+  color: #5c4a2e;
+  border: 1px solid #e5d5b8;
+  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.borrower-portal .b-btn-secondary:hover {
+  background: #f0e6d2;
+}
+
+.borrower-portal .b-input {
+  background: #fff;
+  border: 1px solid #e5d5b8;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #2a2318;
+  font-size: 0.875rem;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.borrower-portal .b-input::placeholder {
+  color: #8b6f47;
+}
+.borrower-portal .b-input:focus {
+  outline: none;
+  border-color: #0d9488;
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+
+/* Paper grain texture overlay */
+.borrower-portal .b-paper-bg {
+  background-color: #faf3e8;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(212, 168, 83, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(20, 184, 166, 0.03) 0%, transparent 50%),
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+
+/* Step indicator for processing page */
+@keyframes b-step-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.b-step-animate {
+  animation: b-step-in 0.4s ease-out forwards;
+}
+
+@keyframes b-check-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+.b-check-animate {
+  stroke-dasharray: 24;
+  animation: b-check-draw 0.4s ease-out forwards;
+}
+
+/* Gentle pulse for recording indicator */
+@keyframes b-pulse-warm {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+.b-pulse-warm {
+  animation: b-pulse-warm 1.5s ease-in-out infinite;
+}
+
+/* Fade in for borrower portal */
+@keyframes b-fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.b-fade-in-up {
+  animation: b-fade-in-up 0.5s ease-out forwards;
+}
+
+/* Gold shimmer for success code */
+@keyframes b-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.b-shimmer {
+  background: linear-gradient(
+    90deg,
+    #d4a853 0%,
+    #e8c882 25%,
+    #d4a853 50%,
+    #e8c882 75%,
+    #d4a853 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: b-shimmer 3s linear infinite;
 }
