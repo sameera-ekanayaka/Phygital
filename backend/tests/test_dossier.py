@@ -208,7 +208,7 @@ class TestGenerateEndpoint:
     """Tests for the /generate endpoint (dossier + QR token)."""
 
     def test_generate_happy_path(self, client) -> None:
-        """Generate returns a full dossier plus qr_payload and qr_expires_at."""
+        """Generate returns a full dossier plus verification_code and code_expires_at."""
         resp = client.post(GENERATE_URL, json=_calculate_payload())
 
         assert resp.status_code == 200
@@ -221,19 +221,20 @@ class TestGenerateEndpoint:
         assert "metrics" in dossier
         assert "recommendation" in dossier
 
-        # QR metadata
-        assert isinstance(data["qr_payload"], str)
-        assert len(data["qr_payload"]) > 0
-        assert isinstance(data["qr_expires_at"], str)
+        # Verification metadata
+        assert isinstance(data["verification_code"], str)
+        assert len(data["verification_code"]) > 0
+        assert data["verification_code"].startswith("PHYG-")
+        assert isinstance(data["code_expires_at"], str)
 
-    def test_generate_qr_expires_in_72_hours(self, client) -> None:
-        """qr_expires_at must be roughly 72 hours in the future."""
+    def test_generate_code_expires_in_72_hours(self, client) -> None:
+        """code_expires_at must be roughly 72 hours in the future."""
         before = datetime.now(tz=timezone.utc)
         resp = client.post(GENERATE_URL, json=_calculate_payload())
         after = datetime.now(tz=timezone.utc)
 
         assert resp.status_code == 200
-        expires_at = datetime.fromisoformat(resp.json()["qr_expires_at"])
+        expires_at = datetime.fromisoformat(resp.json()["code_expires_at"])
 
         # Must be timezone-aware and in the future
         assert expires_at.tzinfo is not None
@@ -252,8 +253,8 @@ class TestGenerateEndpoint:
         data = resp.json()
 
         assert data["dossier"]["recommendation"] == "DECLINE"
-        assert isinstance(data["qr_payload"], str) and len(data["qr_payload"]) > 0
-        assert isinstance(data["qr_expires_at"], str)
+        assert isinstance(data["verification_code"], str) and len(data["verification_code"]) > 0
+        assert isinstance(data["code_expires_at"], str)
 
 
 # ── Scoring engine unit tests ────────────────────────────────────────────────

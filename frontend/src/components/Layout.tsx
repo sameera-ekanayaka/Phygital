@@ -12,14 +12,14 @@ import {
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/scan", label: "QR Scanner", icon: ScanLine },
+  { to: "/scan", label: "Verify Code", icon: ScanLine },
   { to: "/dossier", label: "Dossier", icon: FileText },
   { to: "/upload", label: "Data Capture", icon: Upload },
 ];
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
-  "/scan": "QR Code Scanner",
+  "/scan": "Verification Code",
   "/dossier": "AI Credit Dossier",
   "/upload": "Data Capture",
 };

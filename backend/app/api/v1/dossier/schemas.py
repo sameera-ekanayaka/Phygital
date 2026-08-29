@@ -73,11 +73,11 @@ class CreditDossierResponse(BaseModel):
 
 
 class DossierGenerateResponse(BaseModel):
-    """Dossier plus a 72-hour HMAC-signed QR payload for audit-trail linking."""
+    """Dossier plus a 72-hour HMAC-signed verification code for audit-trail linking."""
 
     dossier: CreditDossierResponse
-    qr_payload: str = Field(description="Signed token (opaque to client) for the QR code")
-    qr_expires_at: str = Field(description="ISO-8601 UTC expiry timestamp (72 hours)")
+    verification_code: str = Field(description="Human-readable verification code (e.g. PHYG-A3F8-K9M2)")
+    code_expires_at: str = Field(description="ISO-8601 UTC expiry timestamp (72 hours)")
 
 
 # ── Loan Execution ────────────────────────────────────────────────────────────

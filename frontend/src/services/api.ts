@@ -35,10 +35,15 @@ export interface IngestResponse {
 }
 
 export interface QrGenerateResponse {
-  qr_code_base64: string;
+  verification_code: string;
   token: string;
   expires_at: string;
-  verify_url: string;
+}
+
+export interface VerificationResolveResponse {
+  cash_flow_id: string;
+  cash_flow_data: Record<string, unknown>;
+  token: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -141,18 +146,21 @@ export async function submitText(notes: string): Promise<IngestResponse> {
 }
 
 /**
- * Generate a cryptographic QR code for a processed cash-flow dossier.
+ * Generate a verification code for a processed cash-flow dossier.
  */
-export async function generateQR(
+export async function generateVerificationCode(
   cashFlowId: string,
   expiryMinutes: number = 4320,
 ): Promise<QrGenerateResponse> {
-  const { data } = await apiClient.post<QrGenerateResponse>("/qrcode/generate", {
+  const { data } = await apiClient.post<QrGenerateResponse>("/verification/generate", {
     cash_flow_id: cashFlowId,
     expiry_minutes: expiryMinutes,
   });
   return data;
 }
+
+/** @deprecated Use `generateVerificationCode` instead. */
+export const generateQR = generateVerificationCode;
 
 export interface QrVerifyResponse {
   cash_flow_id: string;
@@ -181,10 +189,18 @@ export interface LoanExecutionResponse {
 }
 
 /**
- * Verify a QR token and retrieve the linked cash-flow dossier data.
+ * Verify a token and retrieve the linked cash-flow dossier data.
  */
 export async function verifyQR(token: string): Promise<QrVerifyResponse> {
-  const { data } = await apiClient.get<QrVerifyResponse>(`/qrcode/verify/${encodeURIComponent(token)}`);
+  const { data } = await apiClient.get<QrVerifyResponse>(`/verification/verify/${encodeURIComponent(token)}`);
+  return data;
+}
+
+/**
+ * Resolve a human-readable verification code to retrieve dossier data and token.
+ */
+export async function resolveVerificationCode(code: string): Promise<VerificationResolveResponse> {
+  const { data } = await apiClient.get<VerificationResolveResponse>(`/verification/resolve/${encodeURIComponent(code)}`);
   return data;
 }
 

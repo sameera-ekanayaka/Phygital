@@ -1,7 +1,7 @@
-"""Dossier business logic — scoring, explainability, and QR token generation.
+"""Dossier business logic — scoring, explainability, and verification code generation.
 
 Orchestrates the :mod:`scoring_engine` to build a full :class:`CreditDossierResponse`,
-and optionally mints a 72-hour HMAC-signed QR payload via :mod:`core.security`.
+and optionally mints a 72-hour HMAC-signed token plus verification code via :mod:`core.security`.
 """
 
 import hashlib
@@ -20,6 +20,7 @@ from app.api.v1.dossier.schemas import (
     FinancialMetrics,
     LoanExecutionResponse,
 )
+from app.api.v1.qrcode.service import generate_verification_code, store_code_mapping
 from app.core.redis_client import get_redis, store_with_ttl
 from app.core.security import create_signed_token, invalidate_token, verify_token
 from app.services.scoring_engine import (
@@ -34,7 +35,7 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 # 72 hours expressed in minutes (used by the security token helper).
-_QR_TTL_MINUTES = 72 * 60
+_TTL_MINUTES = 72 * 60
 
 
 def _build_dossier(
@@ -108,17 +109,17 @@ def calculate_dossier(request: DossierCalculateRequest) -> CreditDossierResponse
 def generate_dossier_with_qr(
     request: DossierGenerateRequest,
 ) -> DossierGenerateResponse:
-    """Compute a credit dossier **and** mint a 72-hour signed QR payload.
+    """Compute a credit dossier **and** mint a 72-hour signed verification code.
 
-    The QR payload embeds the merchant ID (or a generated UUID), the risk
-    score, and the recommendation — enough for a bank officer to verify the
-    dossier provenance without exposing raw transaction data.
+    The verification code and HMAC token embed the merchant ID (or a generated
+    UUID), the risk score, and the recommendation — enough for a bank officer
+    to verify the dossier provenance without exposing raw transaction data.
 
     Args:
         request: Validated request body from the /generate endpoint.
 
     Returns:
-        A :class:`DossierGenerateResponse` containing the dossier and QR metadata.
+        A :class:`DossierGenerateResponse` containing the dossier and verification metadata.
     """
     dossier = _build_dossier(
         transactions=request.transactions,
@@ -134,7 +135,7 @@ def generate_dossier_with_qr(
 
     token, expires_at_unix = create_signed_token(
         cash_flow_id=dossier_id,
-        expiry_minutes=_QR_TTL_MINUTES,
+        expiry_minutes=_TTL_MINUTES,
     )
 
     # Store dossier data in Redis so execute_loan can retrieve it
@@ -152,20 +153,37 @@ def generate_dossier_with_qr(
             "avg_confidence": dossier.avg_confidence,
         },
     }
-    r.setex(f"phygital:qr:{token}", _QR_TTL_MINUTES * 60, json.dumps(store_payload))
+    ttl_seconds = _TTL_MINUTES * 60
+    r.setex(f"phygital:qr:{token}", ttl_seconds, json.dumps(store_payload))
 
-    qr_expires_at = datetime.fromtimestamp(expires_at_unix, tz=timezone.utc).isoformat()
+    # Generate a verification code with SETNX-style collision retry (max 3).
+    vcode: str | None = None
+    for attempt in range(3):
+        candidate = generate_verification_code()
+        vcode_key = f"phygital:vcode:{candidate}"
+        if r.set(vcode_key, token, ex=ttl_seconds, nx=True):
+            vcode = candidate
+            break
+        logger.warning(
+            "Dossier verification code collision (attempt %d/3): %s", attempt + 1, candidate
+        )
+    if vcode is None:
+        vcode = generate_verification_code()
+        store_code_mapping(vcode, token, ttl_seconds)
+
+    code_expires_at = datetime.fromtimestamp(expires_at_unix, tz=timezone.utc).isoformat()
 
     logger.info(
-        "QR token generated for dossier %s — expires %s",
+        "Verification code generated for dossier %s — code=%s, expires %s",
         dossier_id,
-        qr_expires_at,
+        vcode,
+        code_expires_at,
     )
 
     return DossierGenerateResponse(
         dossier=dossier,
-        qr_payload=token,
-        qr_expires_at=qr_expires_at,
+        verification_code=vcode,
+        code_expires_at=code_expires_at,
     )
 
 

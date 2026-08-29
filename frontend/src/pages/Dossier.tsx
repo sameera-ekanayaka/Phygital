@@ -307,8 +307,8 @@ export default function Dossier() {
         </div>
         <h1 className="text-lg font-bold text-white">No Token Provided</h1>
         <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-          A valid QR verification token is required to view the dossier. Please
-          scan a merchant QR code or enter a token manually.
+          A valid verification token is required to view the dossier. Please
+          enter the merchant's verification code on the scanner page.
         </p>
         <button onClick={() => navigate("/scan")} className="btn-primary mt-6">
           <Shield className="w-4 h-4" />
@@ -342,12 +342,12 @@ export default function Dossier() {
           Security Alert: Tampered or Expired Dossier
         </h1>
         <p className="mt-3 text-sm text-slate-400 leading-relaxed max-w-sm">
-          This QR code has either exceeded its 72-hour validity window or has
-          been tampered with. The cryptographic signature could not be verified.
-          For security reasons the dossier data is inaccessible.
+          This verification code has either exceeded its 72-hour validity window
+          or has been tampered with. The cryptographic signature could not be
+          verified. For security reasons the dossier data is inaccessible.
         </p>
         <div className="mt-4 text-xs text-red-400/70 bg-red-500/5 border border-red-500/15 rounded-lg px-4 py-2">
-          Contact the merchant to regenerate a fresh QR code.
+          Contact the merchant to regenerate a fresh verification code.
         </div>
         <button onClick={() => navigate("/scan")} className="btn-primary mt-6">
           <Shield className="w-4 h-4" />

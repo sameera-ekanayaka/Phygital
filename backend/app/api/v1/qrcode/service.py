@@ -1,25 +1,27 @@
-"""QR code generation and verification service.
+"""Verification code generation and token verification service.
 
 Generates HMAC-signed tokens that map to cash-flow JSON in Redis, and
-renders them as QR code PNG images encoded in base64 for easy embedding
-in dossiers or WhatsApp messages.
+human-readable verification codes (e.g. PHYG-A3F8-K9M2) that bank officers
+can type in instead of scanning a QR code.
 """
 
-import base64
-import io
 import json
 import logging
+import secrets
 from datetime import datetime, timezone
-
-import qrcode
 
 from app.config import get_settings
 from app.core.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
-# Redis key prefix for QR token → cash-flow data mapping.
+# Redis key prefix for token → cash-flow data mapping.
 _REDIS_PREFIX = "phygital:qr:"
+
+# Verification-code alphabet (ambiguous characters removed: 0/O, I/1/L).
+_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+_CODE_PREFIX = "PHYG"
+_VCODE_PREFIX = "phygital:vcode:"
 
 
 def _store_cash_flow_in_redis(
@@ -46,66 +48,75 @@ def _store_cash_flow_in_redis(
         time=ttl_seconds,
         value=json.dumps(store_payload),
     )
-    logger.info("Stored QR token in Redis (ttl=%ds): %s…", ttl_seconds, token[:16])
+    logger.info("Stored token in Redis (ttl=%ds): %s…", ttl_seconds, token[:16])
 
 
-def generate_qr_code_png(verify_url: str) -> str:
-    """Render *verify_url* as a QR code and return a base64-encoded PNG string.
-
-    Args:
-        verify_url: The URL to encode inside the QR code.
-
-    Returns:
-        Base64-encoded PNG image data (no ``data:`` prefix).
-    """
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(verify_url)
-    qr.make(fit=True)
-
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    return base64.b64encode(buffer.getvalue()).decode("ascii")
+def generate_verification_code() -> str:
+    """Generate a human-readable verification code like PHYG-A3F8-K9M2."""
+    part1 = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(4))
+    part2 = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(4))
+    return f"{_CODE_PREFIX}-{part1}-{part2}"
 
 
-def generate_qr(
+def store_code_mapping(code: str, token: str, ttl_seconds: int) -> None:
+    """Store a verification-code → HMAC-token mapping in Redis."""
+    r = get_redis()
+    r.setex(f"{_VCODE_PREFIX}{code}", ttl_seconds, token)
+
+
+def resolve_code(code: str) -> str | None:
+    """Resolve a verification code to its HMAC token (or None if expired)."""
+    r = get_redis()
+    return r.get(f"{_VCODE_PREFIX}{code}")
+
+
+def generate_verification(
     cash_flow_id: str,
     expiry_minutes: int,
     cash_flow_data: dict | None = None,
 ) -> dict:
-    """Create a signed QR token, store it in Redis, and render the QR image.
+    """Create a signed token, a verification code, and store both in Redis.
 
     Args:
         cash_flow_id: UUID identifying the cash-flow record.
-        expiry_minutes: How long the token / QR code remains valid.
+        expiry_minutes: How long the token / code remains valid.
         cash_flow_data: Optional JSON to store alongside the token in Redis.
 
     Returns:
-        A dict matching ``QrGenerateResponse`` fields.
+        A dict matching ``VerificationGenerateResponse`` fields.
     """
     from app.core.security import create_signed_token
 
-    settings = get_settings()
-
     token, expires_at_unix = create_signed_token(cash_flow_id, expiry_minutes)
-    verify_url = f"{settings.base_url}/verify/{token}"
-    qr_base64 = generate_qr_code_png(verify_url)
     ttl_seconds = expiry_minutes * 60
 
     _store_cash_flow_in_redis(token, cash_flow_id, cash_flow_data, ttl_seconds)
 
+    # Generate a verification code with SETNX-style collision retry (max 3).
+    r = get_redis()
+    code: str | None = None
+    for attempt in range(3):
+        candidate = generate_verification_code()
+        vcode_key = f"{_VCODE_PREFIX}{candidate}"
+        # set(nx=True) returns True only if the key did not already exist.
+        if r.set(vcode_key, token, ex=ttl_seconds, nx=True):
+            code = candidate
+            break
+        logger.warning(
+            "Verification code collision (attempt %d/3): %s", attempt + 1, candidate
+        )
+
+    if code is None:
+        # Extremely unlikely — fall back to a guaranteed-unique code.
+        code = generate_verification_code()
+        store_code_mapping(code, token, ttl_seconds)
+
     expires_at = datetime.fromtimestamp(expires_at_unix, tz=timezone.utc)
 
     return {
-        "qr_code_base64": qr_base64,
+        "verification_code": code,
         "token": token,
         "expires_at": expires_at,
-        "verify_url": verify_url,
     }
 
 
@@ -113,7 +124,7 @@ def verify_token(token: str) -> dict | None:
     """Look up *token* in Redis and return the stored cash-flow data.
 
     Args:
-        token: The HMAC-signed token from the QR verification URL.
+        token: The HMAC-signed token from the verification URL.
 
     Returns:
         The stored dict if the token exists and has not expired, otherwise ``None``.
