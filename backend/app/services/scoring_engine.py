@@ -9,7 +9,7 @@ import logging
 import statistics
 from typing import List
 
-from app.api.v1.ingest.schemas import ExtractedTransaction
+from app.schemas.transaction import ExtractedTransaction
 
 logger = logging.getLogger(__name__)
 

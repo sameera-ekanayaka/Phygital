@@ -21,7 +21,7 @@ from app.api.v1.dossier.schemas import (
     LoanExecutionResponse,
 )
 from app.core.redis_client import get_redis, store_with_ttl
-from app.core.security import create_signed_token, verify_token
+from app.core.security import create_signed_token, invalidate_token, verify_token
 from app.services.scoring_engine import (
     compute_financial_metrics,
     derive_recommendation,
@@ -226,6 +226,10 @@ def execute_loan(
     ncgi_guarantee_ref = f"NCGI-{datetime.now().year}-{uuid.uuid4().hex[:8].upper()}"
 
     # f. Simulate LankaSign CA digital signature.
+    # WARNING: This is a SIMULATED LankaSign digital signature (SHA-256 hash).
+    # Production MUST integrate with the real LankaSign CA API for legally
+    # binding signatures per Electronic Transactions Act No. 19 of 2006.
+    # TODO(security): Replace with actual CA-issued digital certificate.
     #    Simulates LankaSign CA digital signature per Sri Lanka Electronic Transactions Act No. 19 of 2006.
     timestamp = datetime.now(timezone.utc).isoformat()
     signing_payload = f"{contract_id}|{officer_id}|{approved_amount}|{timestamp}"
@@ -251,6 +255,10 @@ def execute_loan(
         ttl_seconds=30 * 24 * 3600,  # 30 days
     ):
         raise HTTPException(status_code=503, detail="Failed to persist loan contract. Please retry.")
+
+    # Invalidate the QR token to prevent reuse (single-use token).
+    invalidate_token(token)
+    r.delete(f"phygital:qr:{token}")
 
     logger.info(
         "Loan executed: contract=%s, officer=%s, amount=%.2f, ncgi=%.0f%%",

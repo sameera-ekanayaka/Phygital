@@ -14,6 +14,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.v1.router import api_v1_router
 from app.config import get_settings
+from app.core.auth import auth_router
 from app.core.limiter import limiter
 
 logger = logging.getLogger("phygital")
@@ -42,24 +43,38 @@ def create_app() -> FastAPI:
             "bank-grade cash-flow dossiers for micro-SME credit assessment."
         ),
         version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
     )
 
     # ── CORS ────────────────────────────────────────────────────────────────
+    origins = ["*"] if settings.debug else settings.allowed_origins
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if settings.debug else [],
-        allow_credentials=True,
+        allow_origins=origins,
+        allow_credentials=not settings.debug,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # ── Security Headers ─────────────────────────────────────────────────────
+    @application.middleware("http")
+    async def add_security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "0"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if not settings.debug:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
 
     # ── Rate limiting ───────────────────────────────────────────────────────
     application.state.limiter = limiter
     application.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     # ── Routes ──────────────────────────────────────────────────────────────
+    application.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
     application.include_router(api_v1_router, prefix="/api/v1")
 
     @application.get("/health", tags=["system"])

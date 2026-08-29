@@ -53,6 +53,8 @@ def _redis_json(obj: dict) -> str:
 
 
 # ── Internal audit helper ───────────────────────────────────────────────────
+# TODO(infra): Audit logs are stored in volatile Redis. For production
+# PDPA compliance, migrate to PostgreSQL with append-only semantics.
 
 
 def _log_audit_event(
@@ -228,6 +230,8 @@ def revoke_consent(request: ConsentRevokeRequest) -> ConsentRevokeResponse:
         active_tokens = client.smembers(token_set_key)
         for token in active_tokens:
             if invalidate_token(token):
+                # Also purge dossier/QR data keyed by this token.
+                client.delete(f"phygital:qr:{token}")
                 tokens_invalidated += 1
             else:
                 failed_tokens.append(token)
@@ -318,7 +322,7 @@ def revoke_consent(request: ConsentRevokeRequest) -> ConsentRevokeResponse:
 # ── Audit Log Retrieval ──────────────────────────────────────────────────────
 
 
-def get_audit_log(dossier_id: str) -> AuditLogResponse:
+def get_audit_log(dossier_id: str, offset: int = 0, limit: int = 50) -> AuditLogResponse:
     """Return the immutable audit log for *dossier_id*.
 
     Per PDPA No. 9 of 2022 Sections 12 and 14, data subjects and auditors
@@ -327,14 +331,19 @@ def get_audit_log(dossier_id: str) -> AuditLogResponse:
 
     Args:
         dossier_id: The dossier ID or consent ID to retrieve the log for.
+        offset: Pagination offset (number of entries to skip).
+        limit: Maximum number of entries to return.
 
     Returns:
-        An :class:`AuditLogResponse` with all recorded entries.
+        An :class:`AuditLogResponse` with paginated entries.
     """
     entries: list[AuditLogEntry] = []
+    total: int = 0
     try:
         client = get_redis()
-        raw_entries = client.lrange(f"{_AUDIT_PREFIX}{dossier_id}", 0, -1)
+        key = f"{_AUDIT_PREFIX}{dossier_id}"
+        total = client.llen(key)
+        raw_entries = client.lrange(key, offset, offset + limit - 1)
         for raw in raw_entries:
             try:
                 entries.append(AuditLogEntry.model_validate_json(raw))
@@ -348,5 +357,5 @@ def get_audit_log(dossier_id: str) -> AuditLogResponse:
     return AuditLogResponse(
         dossier_id=dossier_id,
         entries=entries,
-        total_entries=len(entries),
+        total_entries=total,
     )

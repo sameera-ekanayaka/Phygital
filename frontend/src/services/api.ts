@@ -30,6 +30,7 @@ export interface IngestResponse {
   status: string;
   raw_text: string;
   structured_data: StructuredExtraction | null;
+  ai_extraction: Record<string, unknown> | null;
   processed_at: string;
 }
 
@@ -45,9 +46,47 @@ export interface QrGenerateResponse {
 /* ------------------------------------------------------------------ */
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:8000/api/v1",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
   timeout: 30_000,
 });
+
+/* ------------------------------------------------------------------ */
+/*  Auth interceptors                                                  */
+/* ------------------------------------------------------------------ */
+
+apiClient.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem("phygital_access_token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && !window.location.pathname.includes("/login")) {
+      sessionStorage.removeItem("phygital_access_token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
+  },
+);
+
+/* ------------------------------------------------------------------ */
+/*  Auth helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function loginOfficer(
+  username: string,
+  password: string,
+): Promise<{ access_token: string; token_type: string }> {
+  const fd = new FormData();
+  fd.append("username", username);
+  fd.append("password", password);
+  const { data } = await apiClient.post("/auth/token", fd);
+  return data;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Helper functions                                                   */
@@ -60,7 +99,6 @@ const apiClient = axios.create({
 export async function uploadFiles(
   files: (File | Blob)[],
   notes: string = "",
-  fileTypes: ("ledger_image" | "voice_note")[] = [],
 ): Promise<IngestResponse> {
   const fd = new FormData();
 
@@ -74,9 +112,6 @@ export async function uploadFiles(
 
   fd.append("notes", notes);
 
-  // Optionally attach source_type hints if the backend expects them
-  fileTypes.forEach((t) => fd.append("source_types", t));
-
   const { data } = await apiClient.post<IngestResponse>("/ingest/upload", fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -84,13 +119,12 @@ export async function uploadFiles(
 }
 
 /**
- * Upload a single file with an explicit source type.
+ * Upload a single file.
  */
 export async function uploadFile(
   file: File | Blob,
-  sourceType: "ledger_image" | "voice_note",
 ): Promise<IngestResponse> {
-  return uploadFiles([file], "", [sourceType]);
+  return uploadFiles([file], "");
 }
 
 /**
@@ -122,7 +156,7 @@ export async function generateQR(
 
 export interface QrVerifyResponse {
   cash_flow_id: string;
-  cash_flow_data: Record<string, any>;
+  cash_flow_data: Record<string, unknown>;
 }
 
 export interface LoanExecutionRequest {
@@ -139,6 +173,11 @@ export interface LoanExecutionResponse {
   timestamp: string;
   ncgi_guarantee_ref: string;
   status: string;
+  ncgi_coverage_percent: number;
+  approved_amount: number;
+  interest_rate: number;
+  officer_id: string;
+  merchant_name: string;
 }
 
 /**
@@ -153,7 +192,7 @@ export async function verifyQR(token: string): Promise<QrVerifyResponse> {
  * Execute a loan approval with LankaSign digital signature and NCGI guarantee.
  */
 export async function executeLoan(request: LoanExecutionRequest): Promise<LoanExecutionResponse> {
-  const { data } = await apiClient.post<LoanExecutionResponse>("/dossier/execute", request);
+  const { data } = await apiClient.post<LoanExecutionResponse>("/dossier/execute-loan", request);
   return data;
 }
 

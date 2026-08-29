@@ -4,8 +4,10 @@ Uses pydantic-settings v2 to validate and coerce every value at startup so that
 misconfiguration fails fast rather than at request time.
 """
 
+import logging
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,12 +25,26 @@ class Settings(BaseSettings):
     )
 
     # ── Cryptography ────────────────────────────────────────────────────────
-    secret_key: str = "your_secret_key_here"
+    secret_key: str
     """Symmetric key used for HMAC-SHA256 token signing."""
 
     # ── Redis ───────────────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
     """Connection URL for the Redis instance used as ephemeral data store."""
+
+    # ── CORS & JWT ────────────────────────────────────────────────────────────
+    allowed_origins: list[str] = []
+    """List of allowed CORS origins for production deployments."""
+
+    jwt_algorithm: str = "HS256"
+    """Algorithm used for JWT token signing and verification."""
+
+    access_token_expire_minutes: int = 480
+    """Time-to-live for JWT access tokens in minutes (default 8 hours)."""
+
+    # ── Officer Auth ─────────────────────────────────────────────────────────
+    officer_credentials: str = "{}"
+    """JSON string mapping officer usernames to passwords for production auth."""
 
     # ── Application ─────────────────────────────────────────────────────────
     base_url: str = "https://phygital.lk"
@@ -59,6 +75,26 @@ class Settings(BaseSettings):
     temp_upload_dir: str = "temp_uploads"
     """Local directory for transient file uploads (voice, images) that are
     purged after the processing cycle completes."""
+
+    @model_validator(mode="after")
+    def _validate_security_settings(self) -> "Settings":
+        """Enforce minimum security standards at startup."""
+        _logger = logging.getLogger(__name__)
+
+        weak_keys = ("your_secret_key_here", "dev_secret_key_for_testing", "")
+        if self.secret_key in weak_keys or len(self.secret_key) < 16:
+            raise ValueError(
+                "SECRET_KEY is too weak or unset. "
+                "Provide a strong key (≥16 characters) via .env or environment variable."
+            )
+
+        if not self.debug:
+            if self.groq_api_key.startswith("your_"):
+                _logger.warning("GROQ_API_KEY appears to be a placeholder — set a real key in production.")
+            if self.google_api_key.startswith("your_"):
+                _logger.warning("GOOGLE_API_KEY appears to be a placeholder — set a real key in production.")
+
+        return self
 
 
 @lru_cache(maxsize=1)

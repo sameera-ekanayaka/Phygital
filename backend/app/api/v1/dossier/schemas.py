@@ -8,14 +8,14 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from app.api.v1.ingest.schemas import ExtractedTransaction
+from app.schemas.transaction import ExtractedTransaction
 
 
 # ── Requests ─────────────────────────────────────────────────────────────────
 
 
 class DossierCalculateRequest(BaseModel):
-    """Input payload for the /calculate endpoint (no QR generation)."""
+    """Input payload for dossier calculation and generation endpoints."""
 
     transactions: List[ExtractedTransaction]
     requested_loan_amount: float = 250_000.0
@@ -24,14 +24,8 @@ class DossierCalculateRequest(BaseModel):
     merchant_id: Optional[str] = None
 
 
-class DossierGenerateRequest(BaseModel):
-    """Input payload for the /generate endpoint (includes QR token)."""
-
-    transactions: List[ExtractedTransaction]
-    requested_loan_amount: float = 250_000.0
-    loan_tenor_months: int = 12
-    merchant_name: Optional[str] = None
-    merchant_id: Optional[str] = None
+# DossierGenerateRequest is identical to DossierCalculateRequest.
+DossierGenerateRequest = DossierCalculateRequest
 
 
 # ── Shared value objects ─────────────────────────────────────────────────────

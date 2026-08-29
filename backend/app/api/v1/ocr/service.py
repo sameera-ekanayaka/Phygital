@@ -11,12 +11,14 @@ from datetime import datetime, timezone
 
 import httpx
 
+from fastapi import HTTPException
 from app.api.v1.ocr.schemas import (
     CashFlowLineItem,
     CashFlowStatement,
     OcrProcessResponse,
 )
 from app.services.ai_engine import extract_structured_data, extract_text_from_image
+from app.core.url_validator import validate_image_url
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,12 @@ async def process_image(image_url: str) -> OcrProcessResponse:
         fastapi.HTTPException: If AI processing fails.
     """
     logger.info("Processing OCR for image: %s", image_url)
+
+    # ── SSRF protection: validate URL before fetching ─────────────────────
+    try:
+        validate_image_url(image_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image URL: {e}")
 
     # Fetch the image from the provided URL
     async with httpx.AsyncClient(timeout=30.0) as client:

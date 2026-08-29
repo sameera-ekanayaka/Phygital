@@ -11,7 +11,7 @@ All route docstrings reference PDPA No. 9 of 2022 Sections 12 & 14.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.api.v1.consent.schemas import (
     AuditLogResponse,
@@ -21,6 +21,7 @@ from app.api.v1.consent.schemas import (
     ConsentRevokeResponse,
 )
 from app.api.v1.consent.service import get_audit_log, record_consent, revoke_consent
+from app.core.auth import get_current_user
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ router = APIRouter(prefix="/consent", tags=["consent"])
 async def post_consent_record(
     request: Request,
     body: ConsentRecordRequest,
+    current_user: dict = Depends(get_current_user),
 ) -> ConsentRecordResponse:
     """Record explicit, purpose-limited consent from a data subject.
 
@@ -69,6 +71,7 @@ async def post_consent_record(
 async def post_consent_revoke(
     request: Request,
     body: ConsentRevokeRequest,
+    current_user: dict = Depends(get_current_user),
 ) -> ConsentRevokeResponse:
     """Revoke previously granted consent and exercise the right-to-erasure.
 
@@ -121,7 +124,12 @@ async def post_consent_revoke(
     response_model=AuditLogResponse,
     summary="Retrieve immutable data-processing audit log (PDPA §12 & §14)",
 )
-async def get_consent_audit_log(dossier_id: str) -> AuditLogResponse:
+async def get_consent_audit_log(
+    dossier_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user),
+) -> AuditLogResponse:
     """Return the chronological audit log for a dossier or consent record.
 
     Per **PDPA No. 9 of 2022 Sections 12 and 14**, every data-processing
@@ -131,10 +139,13 @@ async def get_consent_audit_log(dossier_id: str) -> AuditLogResponse:
 
     Args:
         dossier_id: The dossier ID or consent ID to retrieve the log for.
+        offset: Pagination offset (number of entries to skip).
+        limit: Maximum number of entries to return (1–200).
+        current_user: Authenticated user from JWT token.
 
     Returns:
-        An :class:`AuditLogResponse` with all recorded events in
+        An :class:`AuditLogResponse` with recorded events in
         chronological order.
     """
     logger.info("Consent /audit-log — dossier_id=%s", dossier_id)
-    return get_audit_log(dossier_id)
+    return get_audit_log(dossier_id, offset=offset, limit=limit)
