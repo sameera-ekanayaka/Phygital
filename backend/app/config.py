@@ -47,6 +47,19 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     """API key for OpenAI (Whisper transcription, GPT-4o Vision, structured outputs)."""
 
+    # ── PDPA Compliance ─────────────────────────────────────────────────
+    data_retention_hours: int = 72
+    """Maximum retention window (in hours) for raw ephemeral data before
+    mandatory purge, per PDPA No. 9 of 2022 Section 12 (Data Minimization)."""
+
+    consent_expiry_days: int = 365
+    """TTL (in days) for a recorded consent record before it expires
+    and must be re-authorised by the data subject."""
+
+    temp_upload_dir: str = "temp_uploads"
+    """Local directory for transient file uploads (voice, images) that are
+    purged after the processing cycle completes."""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

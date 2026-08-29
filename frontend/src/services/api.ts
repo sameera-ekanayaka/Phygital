@@ -125,11 +125,35 @@ export interface QrVerifyResponse {
   cash_flow_data: Record<string, any>;
 }
 
+export interface LoanExecutionRequest {
+  token: string;
+  officer_id: string;
+  approved_amount: number;
+  interest_rate: number;
+  interview_notes: string[];
+}
+
+export interface LoanExecutionResponse {
+  contract_id: string;
+  lankasign_cert_hash: string;
+  timestamp: string;
+  ncgi_guarantee_ref: string;
+  status: string;
+}
+
 /**
  * Verify a QR token and retrieve the linked cash-flow dossier data.
  */
 export async function verifyQR(token: string): Promise<QrVerifyResponse> {
   const { data } = await apiClient.get<QrVerifyResponse>(`/qrcode/verify/${encodeURIComponent(token)}`);
+  return data;
+}
+
+/**
+ * Execute a loan approval with LankaSign digital signature and NCGI guarantee.
+ */
+export async function executeLoan(request: LoanExecutionRequest): Promise<LoanExecutionResponse> {
+  const { data } = await apiClient.post<LoanExecutionResponse>("/dossier/execute", request);
   return data;
 }
 

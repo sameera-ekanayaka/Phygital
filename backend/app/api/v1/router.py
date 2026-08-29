@@ -7,6 +7,7 @@ under ``/api/v1``.
 
 from fastapi import APIRouter
 
+from app.api.v1.consent.routes import router as consent_router
 from app.api.v1.dossier.routes import router as dossier_router
 from app.api.v1.ingest.routes import router as ingest_router
 from app.api.v1.ocr.routes import router as ocr_router
@@ -18,3 +19,4 @@ api_v1_router.include_router(ingest_router)
 api_v1_router.include_router(ocr_router)
 api_v1_router.include_router(qrcode_router)
 api_v1_router.include_router(dossier_router)
+api_v1_router.include_router(consent_router)

@@ -16,7 +16,16 @@ import {
   Clock,
   RefreshCw,
   ShieldAlert,
+  XCircle,
+  FileCheck,
 } from "lucide-react";
+import NCGIBadge from "../components/NCGIBadge";
+import LankaSignModal from "../components/LankaSignModal";
+import {
+  executeLoan,
+  verifyQR,
+  type LoanExecutionResponse,
+} from "../services/api";
 import {
   BarChart,
   Bar,
@@ -29,7 +38,6 @@ import {
   Cell,
 } from "recharts";
 import CircularGauge from "../components/CircularGauge";
-import { verifyQR } from "../services/api";
 import type { AxiosError } from "axios";
 
 /* ------------------------------------------------------------------ */
@@ -54,6 +62,7 @@ interface DossierData {
     priority: "high" | "medium" | "low";
   }[];
   ncgi_eligible: boolean;
+  ncgi_coverage_percent?: number;
 }
 
 type ViewState = "loading" | "success" | "expired" | "error" | "no_token";
@@ -136,6 +145,10 @@ function parseDossierData(raw: Record<string, any>): DossierData {
     ai_reasoning: Array.isArray(raw.ai_reasoning) ? raw.ai_reasoning : [],
     interview_prompts: Array.isArray(raw.interview_prompts) ? raw.interview_prompts : [],
     ncgi_eligible: Boolean(raw.ncgi_eligible),
+    ncgi_coverage_percent:
+      typeof raw.ncgi_coverage_percent === "number"
+        ? raw.ncgi_coverage_percent
+        : undefined,
   };
 }
 
@@ -182,6 +195,19 @@ export default function Dossier() {
   const [data, setData] = useState<DossierData | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [checkedPrompts, setCheckedPrompts] = useState<Set<number>>(new Set());
+  const [showLankaSign, setShowLankaSign] = useState(false);
+  const [signatureResult, setSignatureResult] = useState<{
+    contractId: string;
+    certHash: string;
+    timestamp: string;
+    ncgiRef: string;
+  } | null>(null);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResponse, setExecutionResponse] = useState<LoanExecutionResponse | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejected, setRejected] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejectNotes, setRejectNotes] = useState("");
 
   // Hook must be called unconditionally — uses fallback when data is null
   const countdownExpiresAt = data?.expires_at ?? new Date(Date.now() + 86400_000).toISOString();
@@ -222,6 +248,47 @@ export default function Dossier() {
       else next.add(idx);
       return next;
     });
+  }
+
+  const allPromptsChecked =
+    data !== null &&
+    data.interview_prompts.length > 0 &&
+    checkedPrompts.size === data.interview_prompts.length;
+
+  async function handleSignLoan() {
+    if (!data || !token) return;
+    // Fix 3: NCGI eligibility guard
+    if (!data.ncgi_eligible) {
+      alert("This loan is not eligible for NCGI guarantee and cannot be executed.");
+      return;
+    }
+    setIsExecuting(true);
+    try {
+      const notes = Array.from(checkedPrompts).map((i) => data.interview_prompts[i]?.text ?? "");
+      const res = await executeLoan({
+        token,
+        officer_id: "OFC-RPR-003",
+        approved_amount: data.net_cash_flow * 6,
+        interest_rate: 14.0,
+        interview_notes: notes,
+      });
+      setExecutionResponse(res);
+      setSignatureResult({
+        contractId: res.contract_id,
+        certHash: res.lankasign_cert_hash,
+        timestamp: res.timestamp,
+        ncgiRef: res.ncgi_guarantee_ref,
+      });
+    } catch {
+      alert("Loan execution failed. Please try again.");
+    } finally {
+      setIsExecuting(false);
+    }
+  }
+
+  function handleConfirmReject() {
+    setRejected(true);
+    setShowRejectModal(false);
   }
 
   /* ---------- Render states ---------- */
@@ -345,6 +412,54 @@ export default function Dossier() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Post-execution success banner */}
+      {executionResponse && (
+        <div className="card p-5 border-emerald-500/30 bg-emerald-500/5 fade-in-up">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
+              <FileCheck className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-emerald-400">Loan Executed Successfully</h2>
+              <p className="text-[11px] text-emerald-400/70">Contract is legally binding and recorded</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="bg-navy-900/40 rounded-lg p-3 border border-navy-700/30">
+              <span className="text-slate-500 block">Contract ID</span>
+              <span className="text-white font-semibold mt-0.5 block">{executionResponse.contract_id}</span>
+            </div>
+            <div className="bg-navy-900/40 rounded-lg p-3 border border-navy-700/30">
+              <span className="text-slate-500 block">NCGI Ref</span>
+              <span className="text-white font-semibold mt-0.5 block">{executionResponse.ncgi_guarantee_ref}</span>
+            </div>
+            <div className="bg-navy-900/40 rounded-lg p-3 border border-navy-700/30">
+              <span className="text-slate-500 block">Cert Hash</span>
+              <span className="text-white font-mono text-[11px] mt-0.5 block truncate" title={executionResponse.lankasign_cert_hash}>
+                {executionResponse.lankasign_cert_hash.slice(0, 16)}…
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected banner */}
+      {rejected && !executionResponse && (
+        <div className="card p-5 border-red-500/30 bg-red-500/5 fade-in-up">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+              <XCircle className="w-5 h-5 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-red-400">Loan Application Rejected</h2>
+              <p className="text-[11px] text-red-400/70">
+                {rejectReason ? `Reason: ${rejectReason}` : "Application has been declined"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page header */}
       <div className="flex items-center justify-between flex-wrap gap-4 fade-in-up">
         <div className="flex items-center gap-3">
@@ -571,42 +686,11 @@ export default function Dossier() {
       </div>
 
       {/* 3. NCGI Risk Guarantee Status */}
-      <section
-        className={`card p-5 fade-in-up ${
-          ncgi_eligible
-            ? "border-emerald-500/25"
-            : "border-amber-500/25"
-        }`}
-        style={{ animationDelay: "0.18s" }}
-      >
-        <div className="flex items-center gap-4">
-          <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-              ncgi_eligible
-                ? "bg-emerald-500/10 border border-emerald-500/25"
-                : "bg-amber-500/10 border border-amber-500/25"
-            }`}
-          >
-            <ShieldCheck
-              className={`w-6 h-6 ${ncgi_eligible ? "text-emerald-400" : "text-amber-400"}`}
-            />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-white">
-              NCGI Risk Guarantee Status
-            </h2>
-            {ncgi_eligible ? (
-              <span className="badge-green mt-1">
-                NCGI Eligible — 75%-80% Government Coverage
-              </span>
-            ) : (
-              <span className="badge-gold mt-1">
-                NCGI Not Eligible — DSCR below 1.25 threshold
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
+      <NCGIBadge
+        eligible={ncgi_eligible}
+        coveragePercent={data.ncgi_coverage_percent ?? (ncgi_eligible ? 75 : 0)}
+        className="fade-in-up"
+      />
 
       {/* 4. AI Appraisal Cheat Sheet */}
       {ai_reasoning.length > 0 && (
@@ -737,7 +821,59 @@ export default function Dossier() {
         </section>
       )}
 
-      {/* 6. Disclaimer */}
+      {/* 6. Loan Officer Action Bar */}
+      {!executionResponse && !rejected && (
+        <section
+          className="card p-5 fade-in-up"
+          style={{ animationDelay: "0.3s" }}
+        >
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Loan Officer Decision</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {allPromptsChecked
+                  ? "All interview items checked — ready to proceed"
+                  : `Complete all ${interview_prompts.length} interview prompts before approving`}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="btn-secondary !text-red-400 !border-red-500/30 hover:!bg-red-500/10"
+                disabled={!allPromptsChecked}
+              >
+                <XCircle className="w-4 h-4" />
+                Reject
+              </button>
+              <div className="relative group">
+                {/* Fix 3: Disable Approve button when not NCGI eligible */}
+                <button
+                  onClick={() => setShowLankaSign(true)}
+                  disabled={!allPromptsChecked || !data?.ncgi_eligible || isExecuting || !!executionResponse || rejected}
+                  className="btn-primary"
+                  title={!data?.ncgi_eligible ? "Loan not eligible for NCGI guarantee" : undefined}
+                >
+                  <FileCheck className="w-4 h-4" />
+                  Approve Loan
+                </button>
+                {/* Fix 3: Updated tooltip to mention NCGI when that's the reason */}
+                {!allPromptsChecked && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-navy-900 border border-navy-600 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 whitespace-nowrap shadow-xl z-10">
+                    Complete all interview checks first
+                  </div>
+                )}
+                {allPromptsChecked && !data?.ncgi_eligible && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-navy-900 border border-navy-600 rounded-lg px-3 py-1.5 text-[11px] text-slate-300 whitespace-nowrap shadow-xl z-10">
+                    Loan not eligible for NCGI guarantee
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 7. Disclaimer */}
       <div
         className="text-center text-[11px] text-slate-600 leading-relaxed max-w-lg mx-auto pb-2 fade-in-up"
         style={{ animationDelay: "0.3s" }}
@@ -746,6 +882,93 @@ export default function Dossier() {
         officer. All data is encrypted (AES-256) and processed in compliance
         with PDPA regulations. Raw inputs are purged after 72 hours.
       </div>
+
+      {/* LankaSign Modal */}
+      <LankaSignModal
+        isOpen={showLankaSign}
+        onClose={() => {
+          setShowLankaSign(false);
+          if (!executionResponse) setSignatureResult(null);
+        }}
+        onSign={handleSignLoan}
+        loanData={{
+          borrowerName: borrower_name,
+          approvedAmount: net_cash_flow * 6,
+          interestRate: 14.0,
+          ncgiCoverage: data.ncgi_coverage_percent ?? (ncgi_eligible ? 75 : 0),
+          officerId: "OFC-RPR-003",
+        }}
+        signatureResult={signatureResult}
+        isLoading={isExecuting}
+      />
+
+      {/* Rejection Modal */}
+      {showRejectModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowRejectModal(false);
+          }}
+        >
+          <div className="card w-full max-w-md p-0 overflow-hidden" style={{ animation: "fadeInUp 0.25s ease-out" }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-navy-700/40">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center">
+                  <XCircle className="w-4 h-4 text-red-400" />
+                </div>
+                <h2 className="text-sm font-semibold text-white">Reject Loan Application</h2>
+              </div>
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="w-7 h-7 rounded-lg bg-navy-700/50 border border-navy-600/50 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs text-slate-500 block mb-1.5">Rejection Reason</label>
+                <select
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-gold/50"
+                >
+                  <option value="">Select a reason…</option>
+                  {ai_reasoning.map((r, i) => (
+                    <option key={i} value={r}>
+                      {r.length > 60 ? r.slice(0, 60) + "\u2026" : r}
+                    </option>
+                  ))}
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1.5">Additional Notes</label>
+                <textarea
+                  value={rejectNotes}
+                  onChange={(e) => setRejectNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Optional: provide additional context\u2026"
+                  className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/50 resize-none"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={handleConfirmReject}
+                  disabled={!rejectReason}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-red-500 text-white font-semibold text-sm hover:bg-red-600 transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Confirm Rejection
+                </button>
+                <button onClick={() => setShowRejectModal(false)} className="btn-secondary">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
