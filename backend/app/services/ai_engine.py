@@ -98,7 +98,7 @@ async def extract_text_from_image(image_bytes: bytes) -> str:
         image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")
 
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=[
                 "Extract all text from this handwritten/printed ledger page. "
                 "The text may be in Sinhala, Tamil, or English. "
@@ -160,7 +160,7 @@ async def extract_structured_data(raw_text: str) -> dict:
     )
 
     response = await client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Extract financial transactions from this text:\n\n{raw_text}"},

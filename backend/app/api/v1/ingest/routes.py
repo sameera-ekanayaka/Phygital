@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 
 from app.api.v1.ingest.schemas import IngestResponse
 from app.api.v1.ingest.service import process_upload
+from app.api.v1.transactions.service import append_transaction
 from app.core.auth import get_current_user
 from app.core.limiter import limiter
 
@@ -57,4 +58,13 @@ async def upload(
         await f.seek(0)  # Reset file pointer for downstream processing
 
     logger.info("Ingest upload: %d files, notes_length=%d", len(files), len(notes))
-    return await process_upload(files, notes)
+    response = await process_upload(files, notes)
+
+    # ── Session accumulation hook (borrower role only) ────────────────────────
+    try:
+        if current_user.get("role") == "borrower":
+            append_transaction(current_user["sub"], response)
+    except Exception as exc:
+        logger.warning("Failed to append transaction to session: %s", exc)
+
+    return response

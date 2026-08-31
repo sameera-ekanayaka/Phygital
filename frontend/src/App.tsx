@@ -11,6 +11,10 @@ const Landing = lazy(() => import("./pages/Landing"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Borrower portal
+const BorrowerLogin = lazy(() => import("./pages/borrower/BorrowerLogin"));
+const BorrowerRegister = lazy(() => import("./pages/borrower/BorrowerRegister"));
+const BorrowerOTP = lazy(() => import("./pages/borrower/BorrowerOTP"));
+const BorrowerDashboard = lazy(() => import("./pages/borrower/BorrowerDashboard"));
 const BorrowerUpload = lazy(() => import("./pages/borrower/BorrowerUpload"));
 const BorrowerProcessing = lazy(() => import("./pages/borrower/BorrowerProcessing"));
 const BorrowerSuccess = lazy(() => import("./pages/borrower/BorrowerSuccess"));
@@ -36,8 +40,14 @@ export default function App() {
           {/* Global entry */}
           <Route path="/" element={<Landing />} />
 
-          {/* Borrower portal — mobile-first, no auth */}
+          {/* Borrower auth — outside auth wall */}
+          <Route path="/borrower/login" element={<BorrowerLogin />} />
+          <Route path="/borrower/register" element={<BorrowerRegister />} />
+          <Route path="/borrower/verify-otp" element={<BorrowerOTP />} />
+
+          {/* Borrower portal — mobile-first, auth wall via BorrowerLayout */}
           <Route element={<BorrowerLayout />}>
+            <Route path="/borrower/dashboard" element={<BorrowerDashboard />} />
             <Route path="/borrower/upload" element={<BorrowerUpload />} />
             <Route path="/borrower/processing" element={<BorrowerProcessing />} />
             <Route path="/borrower/success" element={<BorrowerSuccess />} />

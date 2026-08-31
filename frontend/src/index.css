@@ -215,3 +215,45 @@
   -webkit-text-fill-color: transparent;
   animation: b-shimmer 3s linear infinite;
 }
+
+/* ── Print styles ─────────────────────────────────────────────────── */
+@media print {
+  /* Hide navigation chrome */
+  header, footer, aside, nav,
+  .no-print,
+  button:not(.print-include) {
+    display: none !important;
+  }
+
+  /* Clean background */
+  body, .borrower-portal, .min-h-screen {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Remove shadows and borders for clean print */
+  .card, .b-card, [class*="shadow"] {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Ensure verification code is prominent */
+  .verification-code {
+    font-size: 24pt !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    padding: 20px !important;
+    border: 2px solid #000 !important;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  /* Ensure content fits on page */
+  * {
+    overflow: visible !important;
+  }
+}

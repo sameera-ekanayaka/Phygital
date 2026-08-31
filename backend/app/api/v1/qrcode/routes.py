@@ -12,7 +12,7 @@ from app.api.v1.qrcode.schemas import (
     VerificationResolveResponse,
 )
 from app.api.v1.qrcode.service import generate_verification, resolve_code, verify_token
-from app.core.auth import get_current_user
+from app.core.auth import get_current_officer
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ router = APIRouter(prefix="/verification", tags=["verification"])
 async def verification_generate(
     request: Request,
     payload: QrGenerateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ) -> VerificationGenerateResponse:
     """Generate an HMAC-signed token and human-readable verification code linked to a cash-flow statement.
 
@@ -60,7 +60,7 @@ async def verification_generate(
 async def verification_resolve(
     request: Request,
     code: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ) -> VerificationResolveResponse:
     """Look up a human-readable verification code and return the stored cash-flow JSON plus HMAC token.
 
@@ -106,7 +106,7 @@ async def verification_resolve(
 async def qr_verify(
     request: Request,
     token: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ) -> QrVerifyResponse:
     """Look up a verification token and return the stored cash-flow JSON.
 

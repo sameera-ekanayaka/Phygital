@@ -4,6 +4,9 @@
  */
 import axios from "axios";
 
+const BORROWER_TOKEN_KEY = "phygital_borrower_token";
+const OFFICER_TOKEN_KEY = "phygital_access_token";
+
 /* ------------------------------------------------------------------ */
 /*  Response types (mirror backend Pydantic schemas)                   */
 /* ------------------------------------------------------------------ */
@@ -46,6 +49,53 @@ export interface VerificationResolveResponse {
   token: string;
 }
 
+export interface BorrowerRegisterResponse {
+  borrower_id: string;
+  message: string;
+  otp_hint?: string;
+}
+
+export interface BorrowerLoginResponse {
+  access_token: string;
+  token_type: string;
+  borrower_name: string;
+}
+
+export interface OtpVerifyResponse {
+  verified: boolean;
+  message: string;
+}
+
+export interface BorrowerProfileResponse {
+  name: string;
+  phone: string;
+  nic_masked: string;
+  verified: boolean;
+}
+
+export interface TransactionSessionItem {
+  request_id: string;
+  raw_text: string;
+  structured_data: Record<string, unknown> | null;
+  processed_at: string;
+}
+
+export interface TransactionSummaryResponse {
+  session_id: string;
+  transaction_count: number;
+  total_revenue: number;
+  total_expenses: number;
+  total_personal: number;
+  business_name: string;
+  items: TransactionSessionItem[];
+}
+
+export interface GenerateCodeResponse {
+  verification_code: string;
+  token: string;
+  expires_at: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Axios instance                                                     */
 /* ------------------------------------------------------------------ */
@@ -60,7 +110,9 @@ const apiClient = axios.create({
 /* ------------------------------------------------------------------ */
 
 apiClient.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem("phygital_access_token");
+  const isBorrowerPath = window.location.pathname.startsWith("/borrower");
+  const tokenKey = isBorrowerPath ? BORROWER_TOKEN_KEY : OFFICER_TOKEN_KEY;
+  const token = sessionStorage.getItem(tokenKey);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -70,9 +122,15 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.includes("/bank/login")) {
-      sessionStorage.removeItem("phygital_access_token");
-      window.location.href = "/bank/login";
+    if (error.response?.status === 401) {
+      const path = window.location.pathname;
+      if (path.startsWith("/borrower") && !path.includes("/borrower/login") && !path.includes("/borrower/register")) {
+        sessionStorage.removeItem(BORROWER_TOKEN_KEY);
+        window.location.href = "/borrower/login";
+      } else if (path.startsWith("/bank") && !path.includes("/bank/login")) {
+        sessionStorage.removeItem(OFFICER_TOKEN_KEY);
+        window.location.href = "/bank/login";
+      }
     }
     return Promise.reject(error);
   },
@@ -91,6 +149,58 @@ export async function loginOfficer(
   fd.append("password", password);
   const { data } = await apiClient.post("/auth/token", fd);
   return data;
+}
+
+export async function registerBorrower(data: {
+  name: string;
+  phone: string;
+  nic: string;
+  password: string;
+}): Promise<BorrowerRegisterResponse> {
+  const { data: res } = await apiClient.post<BorrowerRegisterResponse>("/borrower-auth/register", data);
+  return res;
+}
+
+export async function verifyOtp(
+  phone: string,
+  otpCode: string,
+): Promise<OtpVerifyResponse> {
+  const { data: res } = await apiClient.post<OtpVerifyResponse>("/borrower-auth/verify-otp", {
+    phone,
+    otp_code: otpCode,
+  });
+  return res;
+}
+
+export async function loginBorrower(
+  identifier: string,
+  password: string,
+): Promise<BorrowerLoginResponse> {
+  const { data: res } = await apiClient.post<BorrowerLoginResponse>("/borrower-auth/login", {
+    identifier,
+    password,
+  });
+  return res;
+}
+
+export async function getBorrowerProfile(): Promise<BorrowerProfileResponse> {
+  const { data: res } = await apiClient.get<BorrowerProfileResponse>("/borrower-auth/me");
+  return res;
+}
+
+export async function getTransactionSummary(): Promise<TransactionSummaryResponse> {
+  const { data: res } = await apiClient.get<TransactionSummaryResponse>("/transactions/summary");
+  return res;
+}
+
+export async function generateSessionCode(): Promise<GenerateCodeResponse> {
+  const { data: res } = await apiClient.post<GenerateCodeResponse>("/transactions/generate-code");
+  return res;
+}
+
+export async function clearTransactionSession(): Promise<{ message: string }> {
+  const { data: res } = await apiClient.delete<{ message: string }>("/transactions/session");
+  return res;
 }
 
 /* ------------------------------------------------------------------ */
@@ -211,5 +321,7 @@ export async function executeLoan(request: LoanExecutionRequest): Promise<LoanEx
   const { data } = await apiClient.post<LoanExecutionResponse>("/dossier/execute-loan", request);
   return data;
 }
+
+export { BORROWER_TOKEN_KEY, OFFICER_TOKEN_KEY };
 
 export default apiClient;

@@ -21,6 +21,7 @@ export default function BankLogin() {
     try {
       const data = await loginOfficer(username.trim(), password);
       sessionStorage.setItem("phygital_access_token", data.access_token);
+      sessionStorage.setItem("phygital_officer_name", username.trim());
       navigate("/bank/verify", { replace: true });
     } catch (err: unknown) {
       const msg =

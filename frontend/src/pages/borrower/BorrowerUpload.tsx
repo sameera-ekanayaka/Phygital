@@ -2,18 +2,10 @@ import { useState, useRef, useCallback, useEffect, type DragEvent, type ChangeEv
 import { useNavigate } from "react-router-dom";
 import { Camera, Mic, FileText, Send, X, Loader2, Upload, Square, MicOff, Trash2, CheckCircle, AlertCircle } from "lucide-react";
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
-import { uploadFiles, generateQR } from "../../services/api";
+import { uploadFiles } from "../../services/api";
 
 const MAX_IMAGES = 5;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
-/** Generate a random PHYG-XXXX-XXXX verification code */
-function generateMockCode(): string {
-  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-  const pick = (n: number) =>
-    Array.from({ length: n }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-  return `PHYG-${pick(4)}-${pick(4)}`;
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, "0");
@@ -34,6 +26,7 @@ export default function BorrowerUpload() {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -133,20 +126,11 @@ export default function BorrowerUpload() {
     ];
 
     try {
-      const resp = await uploadFiles(allFiles, notes.trim());
-      const qrRes = await generateQR(resp.request_id);
-      navigate("/borrower/processing", {
-        state: { verificationCode: qrRes.verification_code, expiresAt: qrRes.expires_at },
-      });
+      await uploadFiles(allFiles, notes.trim());
+      setShowSuccess(true);
+      setTimeout(() => navigate("/borrower/dashboard"), 1200);
     } catch {
-      // Mock fallback when backend is unreachable
-      const mockCode = generateMockCode();
-      navigate("/borrower/processing", {
-        state: {
-          verificationCode: mockCode,
-          expiresAt: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
-        },
-      });
+      setSubmitError("Upload failed. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -375,6 +359,14 @@ export default function BorrowerUpload() {
           className="b-input min-h-[100px] resize-y disabled:opacity-50"
         />
       </section>
+
+      {/* Success toast */}
+      {showSuccess && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-teal text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 b-fade-in-up">
+          <CheckCircle className="w-5 h-5" />
+          <span className="text-sm font-medium">Upload successful! Redirecting to dashboard…</span>
+        </div>
+      )}
 
       {/* Error */}
       {submitError && (

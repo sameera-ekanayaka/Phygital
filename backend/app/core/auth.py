@@ -148,3 +148,35 @@ async def login_for_access_token(
     token = create_access_token(subject=form_data.username, role="officer")
     logger.info("Officer '%s' authenticated successfully.", form_data.username)
     return {"access_token": token, "token_type": "bearer"}
+
+
+def get_current_borrower(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require the current user to have the 'borrower' role.
+
+    Raises:
+        HTTPException: 403 if the user's role is not 'borrower'.
+    """
+    if current_user.get("role") != "borrower":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Borrower access required",
+        )
+    return current_user
+
+
+def get_current_officer(
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Require the current user to have the 'officer' role.
+
+    Raises:
+        HTTPException: 403 if the user's role is not 'officer'.
+    """
+    if current_user.get("role") != "officer":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Officer access required",
+        )
+    return current_user

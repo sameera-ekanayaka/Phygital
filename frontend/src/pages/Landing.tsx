@@ -32,7 +32,7 @@ function Landing() {
       <div className="relative z-10 w-full max-w-3xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
         {/* Card 1 — Business Owner */}
         <Link
-          to="/borrower/upload"
+          to="/borrower/login"
           className="card group p-8 flex flex-col items-start gap-4 transition-all duration-300 hover:scale-[1.03] hover:border-gold/50 hover:shadow-gold/10 hover:shadow-xl fade-in-up"
           style={{ animationDelay: "0.15s" }}
         >
@@ -44,7 +44,7 @@ function Landing() {
               I am a Business Owner
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Upload your financial records and get a verification code for your bank
+              Register your business and upload financial records for bank verification
             </p>
           </div>
           <span className="mt-auto text-xs font-medium text-teal/70 group-hover:text-teal transition-colors duration-200 tracking-wide uppercase">
