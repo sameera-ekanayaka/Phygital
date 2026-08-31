@@ -7,6 +7,7 @@ import {
   Lock,
   User,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,13 @@ export default function BankLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentTitle = pageTitles[location.pathname] ?? "Verification Code";
+  const officerName = sessionStorage.getItem("phygital_officer_name") || "Officer";
+
+  function handleLogout() {
+    sessionStorage.removeItem("phygital_access_token");
+    sessionStorage.removeItem("phygital_officer_name");
+    navigate("/");
+  }
 
   /* Auth wall — redirect to login when no token is present */
   useEffect(() => {
@@ -81,13 +89,21 @@ export default function BankLayout() {
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">
-                Officer R. Perera
+                {officerName}
               </div>
               <div className="text-[11px] text-slate-500 truncate">
                 Branch — Colombo 03
               </div>
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            className="mt-3 w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-navy-700/60 transition-colors"
+            title="Sign out"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -115,6 +131,13 @@ export default function BankLayout() {
                 <Icon className="w-5 h-5" />
               </NavLink>
             ))}
+            <button
+              onClick={handleLogout}
+              className="p-2 rounded-lg text-slate-400 hover:text-white transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
           </div>
         </header>
 

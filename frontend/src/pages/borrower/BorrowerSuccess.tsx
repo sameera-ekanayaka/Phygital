@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { useLocation, Navigate, Link } from "react-router-dom";
-import { CheckCircle, Copy, Clock, Home, Check } from "lucide-react";
+import { useLocation, Navigate, Link, useNavigate } from "react-router-dom";
+import { CheckCircle, Copy, Clock, Home, Check, Printer, Plus } from "lucide-react";
 import { useCountdown } from "../../hooks/useCountdown";
 
 interface SuccessState {
@@ -10,6 +10,7 @@ interface SuccessState {
 
 export default function BorrowerSuccess() {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = location.state as SuccessState | null;
   const [copied, setCopied] = useState(false);
 
@@ -83,6 +84,24 @@ export default function BorrowerSuccess() {
             </>
           )}
         </button>
+
+        {/* Print & Add More */}
+        <div className="mt-3 flex items-center gap-3">
+          <button
+            onClick={() => window.print()}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
+          >
+            <Printer className="w-4 h-4" />
+            Print as PDF
+          </button>
+          <button
+            onClick={() => navigate("/borrower/upload")}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-teal/40 bg-teal/5 text-teal text-sm font-medium hover:bg-teal/10 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add More Transactions
+          </button>
+        </div>
 
         {/* Countdown */}
         <div className="mt-4 flex items-center justify-center gap-2 text-warm-600">

@@ -88,6 +88,18 @@ def create_app() -> FastAPI:
         settings.base_url,
     )
 
+    @application.on_event("startup")
+    async def _seed_test_data():
+        """Seed pre-registered test users for development."""
+        try:
+            from app.api.v1.borrower_auth.service import seed_test_borrower
+            seed_test_borrower()
+            logger.info(
+                "Test borrower seeded: NIC=896543456V, password=test1234"
+            )
+        except Exception as exc:
+            logger.warning("Failed to seed test data: %s", exc)
+
     return application
 
 

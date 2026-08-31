@@ -22,7 +22,7 @@ from app.api.v1.dossier.service import (
     execute_loan as execute_loan_service,
     generate_dossier_with_qr,
 )
-from app.core.auth import get_current_user
+from app.core.auth import get_current_officer
 from app.core.limiter import limiter
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ router = APIRouter(prefix="/dossier", tags=["dossier"])
 async def post_calculate(
     request: Request,
     body: DossierCalculateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ) -> CreditDossierResponse:
     """Compute a full credit dossier from extracted transactions.
 
@@ -63,7 +63,7 @@ async def post_calculate(
 async def post_generate(
     request: Request,
     body: DossierGenerateRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ) -> DossierGenerateResponse:
     """Compute a credit dossier **and** mint a 72-hour signed QR token.
 
@@ -88,7 +88,7 @@ async def post_generate(
 async def execute_loan(
     request: Request,
     body: LoanExecutionRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_officer),
 ):
     """Execute an approved loan with LankaSign digital signature and NCGI guarantee.
 
