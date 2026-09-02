@@ -44,15 +44,17 @@ def _build_dossier(
     loan_tenor_months: int,
     merchant_name: str | None,
     merchant_id: str | None,
+    owner_demographics: dict | None = None,
 ) -> CreditDossierResponse:
     """Internal helper that runs the full scoring pipeline and assembles the dossier."""
     metrics_dict = compute_financial_metrics(
         transactions=transactions,
         requested_loan_amount=requested_loan_amount,
         loan_tenor_months=loan_tenor_months,
+        owner_demographics=owner_demographics,
     )
 
-    notes = generate_explainability_notes(metrics_dict, transactions)
+    notes = generate_explainability_notes(metrics_dict, transactions, owner_demographics=owner_demographics)
     anomaly_flags = generate_anomaly_flags(transactions)
     raw_prompts = generate_field_interview_prompts(metrics_dict, transactions)
     prompts = [FieldInterviewPrompt(**p) for p in raw_prompts]
@@ -103,6 +105,7 @@ def calculate_dossier(request: DossierCalculateRequest) -> CreditDossierResponse
         loan_tenor_months=request.loan_tenor_months,
         merchant_name=request.merchant_name,
         merchant_id=request.merchant_id,
+        owner_demographics=request.owner_demographics,
     )
 
 
@@ -127,6 +130,7 @@ def generate_dossier_with_qr(
         loan_tenor_months=request.loan_tenor_months,
         merchant_name=request.merchant_name,
         merchant_id=request.merchant_id,
+        owner_demographics=request.owner_demographics,
     )
 
     # create_signed_token binds a cash_flow_id (here the merchant/dossier ID)

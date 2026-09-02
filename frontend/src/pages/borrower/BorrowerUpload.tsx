@@ -4,7 +4,8 @@ import { Camera, Mic, FileText, Send, X, Loader2, Upload, Square, MicOff, Trash2
 import { useVoiceRecorder } from "../../hooks/useVoiceRecorder";
 import { uploadFiles } from "../../services/api";
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10;
+const MAX_FILE_SIZE_MB = 10;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function formatTime(seconds: number): string {
@@ -28,8 +29,11 @@ export default function BorrowerUpload() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [sizeError, setSizeError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const {
     status: recStatus,
@@ -40,18 +44,40 @@ export default function BorrowerUpload() {
     reset: resetRecorder,
   } = useVoiceRecorder();
 
+  /* --- auto-clear size error toast --- */
+  useEffect(() => {
+    if (!sizeError) return;
+    const timer = setTimeout(() => setSizeError(null), 3000);
+    return () => clearTimeout(timer);
+  }, [sizeError]);
+
   /* --- image handlers --- */
   const addImages = useCallback(
     (files: FileList | File[]) => {
       setImageError(null);
-      const incoming = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
-      const remaining = MAX_IMAGES - images.length;
-      if (incoming.length > remaining) {
-        setImageError(`Maximum ${MAX_IMAGES} images allowed.`);
-        return;
+      const maxSize = MAX_FILE_SIZE_MB * 1024 * 1024;
+      const accepted = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type));
+      const valid: File[] = [];
+      const oversized: string[] = [];
+      for (const f of accepted) {
+        if (f.size > maxSize) {
+          oversized.push(f.name);
+        } else {
+          valid.push(f);
+        }
       }
-      const urls = incoming.map((f) => URL.createObjectURL(f));
-      setImages((prev) => [...prev, ...incoming]);
+      if (oversized.length > 0) {
+        setSizeError(`File '${oversized[0]}' exceeds ${MAX_FILE_SIZE_MB} MB limit`);
+      }
+      const remaining = MAX_IMAGES - images.length;
+      if (valid.length > remaining) {
+        setImageError(`Maximum ${MAX_IMAGES} images allowed.`);
+        if (remaining <= 0) return;
+        valid.splice(remaining);
+      }
+      if (valid.length === 0) return;
+      const urls = valid.map((f) => URL.createObjectURL(f));
+      setImages((prev) => [...prev, ...valid]);
       setImageUrls((prev) => [...prev, ...urls]);
     },
     [images.length],
@@ -77,6 +103,14 @@ export default function BorrowerUpload() {
   );
 
   const handleFileChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files?.length) addImages(e.target.files);
+      e.target.value = "";
+    },
+    [addImages],
+  );
+
+  const handleCameraCapture = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       if (e.target.files?.length) addImages(e.target.files);
       e.target.value = "";
@@ -126,13 +160,15 @@ export default function BorrowerUpload() {
     ];
 
     try {
-      await uploadFiles(allFiles, notes.trim());
+      setUploadProgress(0);
+      await uploadFiles(allFiles, notes.trim(), (percent) => setUploadProgress(percent));
       setShowSuccess(true);
       setTimeout(() => navigate("/borrower/dashboard"), 1200);
     } catch {
       setSubmitError("Upload failed. Please check your connection and try again.");
     } finally {
       setSubmitting(false);
+      setUploadProgress(0);
     }
   }, [canSubmit, images, audioClips, notes, navigate]);
 
@@ -200,10 +236,41 @@ export default function BorrowerUpload() {
             </p>
           </div>
 
+          {/* Take Photo button */}
+          <div className="mt-3 flex items-center gap-3">
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleCameraCapture}
+            />
+            <button
+              type="button"
+              onClick={() => !submitting && cameraInputRef.current?.click()}
+              disabled={submitting || images.length >= MAX_IMAGES}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-teal/10 border border-teal/30 text-teal text-sm font-medium hover:bg-teal/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <Camera className="w-4 h-4" />
+              Take Photo
+            </button>
+            <span className="text-[11px] text-warm-600/60">
+              Opens camera on mobile devices
+            </span>
+          </div>
+
           {imageError && (
             <p className="mt-2 text-xs text-red-500 flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
               {imageError}
+            </p>
+          )}
+
+          {sizeError && (
+            <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {sizeError}
             </p>
           )}
 
@@ -376,6 +443,22 @@ export default function BorrowerUpload() {
         </div>
       )}
 
+      {/* Upload progress bar */}
+      {submitting && uploadProgress > 0 && (
+        <div className="b-card p-4 b-fade-in-up">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-warm-700">Uploading…</span>
+            <span className="text-xs font-semibold text-teal tabular-nums">{uploadProgress}%</span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-cream-200 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-teal transition-all duration-200 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Submit */}
       <div className="flex justify-center b-fade-in-up" style={{ animationDelay: "0.15s" }}>
         <button
@@ -386,7 +469,7 @@ export default function BorrowerUpload() {
           {submitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Processing…
+              {uploadProgress > 0 ? `Uploading… ${uploadProgress}%` : "Processing…"}
             </>
           ) : (
             <>

@@ -149,7 +149,7 @@ export default function BorrowerDashboard() {
             onClick={() => navigate("/borrower/upload")}
             className="b-btn-primary text-base px-8 py-3"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             Add Records
           </button>
         </div>
@@ -182,7 +182,7 @@ export default function BorrowerDashboard() {
       {summary.business_name && (
         <div className="b-fade-in-up" style={{ animationDelay: "0.05s" }}>
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gold/10 border border-gold/30 text-sm font-medium text-warm-800">
-            <DollarSign className="w-4 h-4 text-gold" />
+            <DollarSign className="w-4 h-4 text-gold shrink-0" />
             {summary.business_name}
           </span>
         </div>
@@ -193,7 +193,7 @@ export default function BorrowerDashboard() {
         {/* Total Revenue */}
         <div className="b-card p-5 border-green-200 bg-green-50/60">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-green-600" />
+            <TrendingUp className="w-5 h-5 text-green-600 shrink-0" />
             <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">
               Total Revenue
             </span>
@@ -206,7 +206,7 @@ export default function BorrowerDashboard() {
         {/* Total Expenses */}
         <div className="b-card p-5 border-orange-200 bg-orange-50/60">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-5 h-5 text-orange-600" />
+            <TrendingDown className="w-5 h-5 text-orange-600 shrink-0" />
             <span className="text-xs font-semibold text-orange-700 uppercase tracking-wide">
               Total Expenses
             </span>
@@ -219,7 +219,7 @@ export default function BorrowerDashboard() {
         {/* Personal Expenses */}
         <div className="b-card p-5 border-blue-200 bg-blue-50/60">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-5 h-5 text-blue-600" />
+            <DollarSign className="w-5 h-5 text-blue-600 shrink-0" />
             <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
               Personal Expenses
             </span>
@@ -233,7 +233,7 @@ export default function BorrowerDashboard() {
       {/* Transaction count badge */}
       <div className="flex items-center gap-3 b-fade-in-up" style={{ animationDelay: "0.15s" }}>
         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal/10 border border-teal/30 text-sm font-semibold text-teal">
-          <FileText className="w-4 h-4" />
+          <FileText className="w-4 h-4 shrink-0" />
           {summary.transaction_count} transaction{summary.transaction_count !== 1 ? "s" : ""}
         </span>
       </div>
@@ -278,7 +278,7 @@ export default function BorrowerDashboard() {
           onClick={() => navigate("/borrower/upload")}
           className="flex-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 shrink-0" />
           Add More Records
         </button>
         <button
@@ -293,7 +293,7 @@ export default function BorrowerDashboard() {
             </>
           ) : (
             <>
-              <QrCode className="w-4 h-4" />
+              <QrCode className="w-4 h-4 shrink-0" />
               Generate Verification Code
             </>
           )}

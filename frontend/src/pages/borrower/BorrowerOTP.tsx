@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } from "react";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
-import { ShieldCheck, Info, Loader2, AlertCircle, RotateCcw } from "lucide-react";
+import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
+import { ShieldCheck, Info, Loader2, AlertCircle, RotateCcw, Shield } from "lucide-react";
 import { verifyOtp } from "../../services/api";
 
 const OTP_LENGTH = 6;
@@ -114,86 +114,129 @@ export default function BorrowerOTP() {
   if (!phone) return <Navigate to="/borrower/register" replace />;
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
-      <div className="text-center b-fade-in-up">
-        <div className="w-14 h-14 rounded-full bg-teal/10 border-2 border-teal/20 flex items-center justify-center mx-auto mb-4">
-          <ShieldCheck className="w-7 h-7 text-teal" />
-        </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-warm-900 font-display">
-          Verify Your Phone
-        </h1>
-        <p className="mt-2 text-warm-600 text-sm">
-          Enter the 6-digit code sent to{" "}
-          <span className="font-semibold text-warm-800">{phone}</span>
-        </p>
-      </div>
-
-      {/* Dev hint */}
-      <div
-        className="flex items-center gap-2 px-4 py-3 rounded-xl bg-sky-50 border border-sky-200 text-sm text-sky-700 b-fade-in-up"
-        style={{ animationDelay: "0.05s" }}
-      >
-        <Info className="w-4 h-4 shrink-0" />
-        <span>
-          <strong>Demo Mode:</strong> Use code{" "}
-          <code className="font-mono font-bold bg-sky-100 px-1.5 py-0.5 rounded">123456</code>
-        </span>
-      </div>
-
-      <div
-        className="b-card p-5 md:p-6 b-fade-in-up space-y-5"
-        style={{ animationDelay: "0.1s" }}
-      >
-        {error && (
-          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+    <div className="borrower-portal min-h-screen b-paper-bg flex flex-col">
+      {/* Minimal top bar */}
+      <header className="flex items-center gap-2.5 px-5 py-4 bg-cream-50/80 backdrop-blur-sm border-b border-cream-300/60">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-teal flex items-center justify-center shadow-sm">
+            <Shield className="w-4 h-4 text-white" />
           </div>
-        )}
-
-        <div className="flex justify-center gap-2.5" onPaste={handlePaste}>
-          {digits.map((digit, i) => (
-            <input
-              key={i}
-              ref={(el) => {
-                inputRefs.current[i] = el;
-              }}
-              type="text"
-              inputMode="numeric"
-              maxLength={1}
-              value={digit}
-              onChange={(e) => handleChange(i, e)}
-              onKeyDown={(e) => handleKeyDown(i, e)}
-              disabled={loading}
-              className="w-12 h-14 text-center text-xl font-bold font-mono b-input !p-0 disabled:opacity-50"
-            />
-          ))}
-        </div>
-
-        {loading && (
-          <div className="flex items-center justify-center gap-2 text-sm text-warm-600">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Verifying…
+          <div>
+            <span className="text-base font-bold text-warm-900 tracking-tight font-display">
+              Phygital
+            </span>
+            <span className="block text-[10px] text-warm-600 font-medium -mt-0.5 tracking-wide">
+              SME Credit Portal
+            </span>
           </div>
-        )}
+        </Link>
+      </header>
 
-        <div className="text-center">
-          {resendDisabled ? (
-            <p className="text-sm text-warm-500">
-              Resend code in{" "}
-              <span className="font-semibold tabular-nums text-warm-700">{resendTimer}s</span>
+      {/* Centered auth form */}
+      <main className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="max-w-md w-full space-y-6">
+          {/* Heading */}
+          <div className="text-center b-fade-in-up">
+            <div className="w-16 h-16 rounded-full bg-teal/10 border-2 border-teal/20 flex items-center justify-center mx-auto mb-5">
+              <ShieldCheck className="w-8 h-8 text-teal" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-warm-900 font-display">
+              Verify Your Phone
+            </h1>
+            <p className="mt-2 text-warm-600 text-sm leading-relaxed">
+              Enter the 6-digit code sent to{" "}
+              <span className="font-semibold text-warm-800">{phone}</span>
             </p>
-          ) : (
-            <button
-              onClick={handleResend}
-              className="inline-flex items-center gap-1.5 text-sm text-teal font-semibold hover:underline"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Resend Code
-            </button>
-          )}
+          </div>
+
+          {/* Dev hint */}
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-sky-50 border border-sky-200 text-sm text-sky-700 b-fade-in-up"
+            style={{ animationDelay: "0.06s" }}
+          >
+            <Info className="w-4 h-4 shrink-0" />
+            <span>
+              <strong>Demo Mode:</strong> Use code{" "}
+              <code className="font-mono font-bold bg-sky-100 px-1.5 py-0.5 rounded">123456</code>
+            </span>
+          </div>
+
+          {/* OTP card */}
+          <div
+            className="b-card p-6 md:p-8 b-fade-in-up space-y-6"
+            style={{ animationDelay: "0.12s" }}
+          >
+            {error && (
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-sm text-red-600">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* OTP inputs */}
+            <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
+              {digits.map((digit, i) => (
+                <input
+                  key={i}
+                  ref={(el) => {
+                    inputRefs.current[i] = el;
+                  }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleChange(i, e)}
+                  onKeyDown={(e) => handleKeyDown(i, e)}
+                  disabled={loading}
+                  className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-bold font-mono b-input !p-0 disabled:opacity-50"
+                />
+              ))}
+            </div>
+
+            {loading && (
+              <div className="flex items-center justify-center gap-2 text-sm text-warm-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Verifying…
+              </div>
+            )}
+
+            <div className="text-center">
+              {resendDisabled ? (
+                <p className="text-sm text-warm-500">
+                  Resend code in{" "}
+                  <span className="font-semibold tabular-nums text-warm-700">{resendTimer}s</span>
+                </p>
+              ) : (
+                <button
+                  onClick={handleResend}
+                  className="inline-flex items-center gap-1.5 text-sm text-teal font-semibold hover:underline"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                  Resend Code
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Back to register */}
+          <p
+            className="text-center text-sm text-warm-600 b-fade-in-up"
+            style={{ animationDelay: "0.18s" }}
+          >
+            Didn't receive anything?{" "}
+            <Link to="/borrower/register" className="text-teal font-semibold hover:underline">
+              Go back
+            </Link>
+          </p>
         </div>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="px-4 py-3 border-t border-cream-300/60 text-center">
+        <span className="text-xs text-warm-600/60">
+          Phygital — Empowering Informal SMEs
+        </span>
+      </footer>
     </div>
   );
 }

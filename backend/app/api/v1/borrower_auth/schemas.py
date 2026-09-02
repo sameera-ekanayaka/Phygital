@@ -25,6 +25,9 @@ class BorrowerRegisterRequest(BaseModel):
     password: str
     """Chosen password for the borrower account."""
 
+    liya_shakthi_member: bool = False
+    """Self-declared NCGI Liya Shakthi membership (women-owned micro-enterprises)."""
+
 
 class BorrowerRegisterResponse(BaseModel):
     """Response returned after successful borrower registration."""
@@ -102,6 +105,12 @@ class BorrowerProfileResponse(BaseModel):
 
     nic_masked: str
     """Masked NIC showing first 3 characters and last character only."""
+
+    gender: str
+    """Gender detected from NIC ('male', 'female', or 'unknown')."""
+
+    liya_shakthi_member: bool
+    """Whether the borrower self-declared NCGI Liya Shakthi membership."""
 
     verified: bool
     """Whether the borrower has completed OTP verification."""

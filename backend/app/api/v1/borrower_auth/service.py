@@ -22,7 +22,7 @@ from app.api.v1.borrower_auth.schemas import (
 from app.config import get_settings
 from app.core.auth import create_access_token
 from app.core.redis_client import get_redis
-from app.core.security import hash_nic
+from app.core.security import detect_gender_from_nic, hash_nic
 
 logger = logging.getLogger(__name__)
 
@@ -92,11 +92,21 @@ def register_borrower(
 
     password_hash = hash_password(data.password)
 
+    # Detect gender from NIC; fall back to "unknown" on bad format so
+    # registration is never blocked by a NIC parsing error.
+    try:
+        gender = detect_gender_from_nic(data.nic)
+    except ValueError as exc:
+        logger.warning("Gender detection failed for NIC: %s", exc)
+        gender = "unknown"
+
     borrower_record = json.dumps({
         "name": data.name,
         "phone": data.phone,
         "nic_hash": nic_hash,
         "password_hash": password_hash,
+        "gender": gender,
+        "liya_shakthi_member": data.liya_shakthi_member,
         "verified": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
@@ -273,6 +283,8 @@ def get_borrower_profile(nic_hash: str) -> BorrowerProfileResponse:
         name=record["name"],
         phone=record["phone"],
         nic_masked=masked,
+        gender=record.get("gender", "unknown"),
+        liya_shakthi_member=record.get("liya_shakthi_member", False),
         verified=record.get("verified", False),
     )
 
@@ -307,11 +319,19 @@ def seed_test_borrower() -> None:
 
     password_hash = hash_password("test1234")
 
+    # 896543456V → digits 3-5 = "543" → 501-866 range → female
+    try:
+        gender = detect_gender_from_nic(nic)
+    except ValueError:
+        gender = "unknown"
+
     borrower_record = json.dumps({
         "name": "Binithi Perera",
         "phone": phone,
         "nic_hash": nic_hash,
         "password_hash": password_hash,
+        "gender": gender,
+        "liya_shakthi_member": True,
         "verified": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })

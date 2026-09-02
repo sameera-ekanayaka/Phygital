@@ -156,6 +156,7 @@ export async function registerBorrower(data: {
   phone: string;
   nic: string;
   password: string;
+  liya_shakthi_member?: boolean;
 }): Promise<BorrowerRegisterResponse> {
   const { data: res } = await apiClient.post<BorrowerRegisterResponse>("/borrower-auth/register", data);
   return res;
@@ -214,7 +215,15 @@ export async function clearTransactionSession(): Promise<{ message: string }> {
 export async function uploadFiles(
   files: (File | Blob)[],
   notes: string = "",
+  onUploadProgress?: (progress: number) => void,
 ): Promise<IngestResponse> {
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error(`File "${(file as File).name ?? "upload"}" exceeds the 10 MB size limit.`);
+    }
+  }
+
   const fd = new FormData();
 
   files.forEach((file, i) => {
@@ -229,6 +238,13 @@ export async function uploadFiles(
 
   const { data } = await apiClient.post<IngestResponse>("/ingest/upload", fd, {
     headers: { "Content-Type": "multipart/form-data" },
+    timeout: 120_000,
+    onUploadProgress: onUploadProgress
+      ? (event) => {
+          const percent = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
+          onUploadProgress(percent);
+        }
+      : undefined,
   });
   return data;
 }
