@@ -22,6 +22,7 @@ class DossierCalculateRequest(BaseModel):
     loan_tenor_months: int = 12
     merchant_name: Optional[str] = None
     merchant_id: Optional[str] = None
+    owner_demographics: Optional[dict] = None
 
 
 # DossierGenerateRequest is identical to DossierCalculateRequest.

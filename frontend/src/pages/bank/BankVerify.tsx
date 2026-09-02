@@ -31,6 +31,16 @@ export default function BankVerify() {
     setError(null);
   }, []);
 
+  /** Handle paste to accept full "PHYG-XXXX-XXXX" codes without maxLength truncation */
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text");
+    let stripped = pasted.replace(/^phyg-/i, "");
+    stripped = stripped.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8);
+    setCode(formatCode(stripped));
+    setError(null);
+  }, []);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -107,8 +117,8 @@ export default function BankVerify() {
             type="text"
             value={code}
             onChange={handleChange}
+            onPaste={handlePaste}
             placeholder="XXXX-XXXX"
-            maxLength={9}
             autoComplete="off"
             spellCheck={false}
             className="w-full bg-navy-900 border border-navy-600 rounded-lg pl-[4.2rem] pr-4 py-3.5 text-sm font-mono text-white tracking-wider placeholder-slate-600 focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/30 transition-all uppercase"

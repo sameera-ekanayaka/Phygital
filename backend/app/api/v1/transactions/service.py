@@ -145,7 +145,10 @@ def clear_session(borrower_id: str) -> None:
     logger.info("Cleared transaction session: borrower=%s…", borrower_id[:12])
 
 
-def generate_session_code(borrower_id: str) -> GenerateCodeResponse:
+def generate_session_code(
+    borrower_id: str,
+    owner_demographics: dict | None = None,
+) -> GenerateCodeResponse:
     """Generate a verification code for the borrower's accumulated session.
 
     Builds an aggregated ``cash_flow_data`` dict from all session items,
@@ -199,6 +202,7 @@ def generate_session_code(borrower_id: str) -> GenerateCodeResponse:
         "business_name": business_name,
         "transactions": all_transactions,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "owner_demographics": owner_demographics,
     }
 
     result = generate_verification(

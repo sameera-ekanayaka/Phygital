@@ -150,6 +150,14 @@
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
 }
 
+/* Icon-aware padding overrides — higher specificity beats base .b-input */
+.borrower-portal .b-input.b-input--icon-left {
+  padding-left: 2.75rem;
+}
+.borrower-portal .b-input.b-input--icon-right {
+  padding-right: 2.75rem;
+}
+
 /* Paper grain texture overlay */
 .borrower-portal .b-paper-bg {
   background-color: #faf3e8;

@@ -4,6 +4,7 @@ All endpoints require borrower authentication via ``get_current_borrower``.
 Rate limits follow the same slowapi pattern used across the application.
 """
 
+import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -19,6 +20,7 @@ from app.api.v1.transactions.service import (
 )
 from app.core.auth import get_current_borrower
 from app.core.limiter import limiter
+from app.core.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +62,27 @@ async def generate_code(
         HTTPException: 403 if the token role is not 'borrower'.
     """
     borrower_id = current_user["sub"]
+
+    # Look up the borrower's gender to build owner_demographics
+    owner_demographics: dict | None = None
     try:
-        return generate_session_code(borrower_id)
+        client = get_redis()
+        raw = client.get(f"phygital:borrower:{borrower_id}")
+        if raw:
+            record = json.loads(raw)
+            gender = record.get("gender", "unknown")
+            demographics: dict = {}
+            if gender == "female":
+                demographics["female_owned"] = True
+            if record.get("liya_shakthi_member", False):
+                demographics["liya_shakthi_claimed"] = True
+            if demographics:
+                owner_demographics = demographics
+    except Exception:
+        logger.exception("Failed to fetch borrower profile for gender detection")
+
+    try:
+        return generate_session_code(borrower_id, owner_demographics=owner_demographics)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   XCircle,
   FileCheck,
+  Award,
 } from "lucide-react";
 import NCGIBadge from "../../components/NCGIBadge";
 import LankaSignModal from "../../components/LankaSignModal";
@@ -63,6 +64,7 @@ interface DossierData {
   }[];
   ncgi_eligible: boolean;
   ncgi_coverage_percent?: number;
+  liya_shakthi_claimed?: boolean;
 }
 
 type ViewState = "loading" | "success" | "expired" | "error" | "no_token";
@@ -146,6 +148,7 @@ const MOCK_DOSSIER: DossierData = {
   ],
   ncgi_eligible: true,
   ncgi_coverage_percent: 80,
+  liya_shakthi_claimed: true,
 };
 
 /* ------------------------------------------------------------------ */
@@ -193,6 +196,12 @@ function parseDossierData(raw: Record<string, unknown>): DossierData {
     ncgi_eligible: Boolean(raw.ncgi_eligible),
     ncgi_coverage_percent:
       typeof raw.ncgi_coverage_percent === "number" ? raw.ncgi_coverage_percent : undefined,
+    liya_shakthi_claimed:
+      raw.owner_demographics != null &&
+      typeof raw.owner_demographics === "object" &&
+      "liya_shakthi_claimed" in (raw.owner_demographics as Record<string, unknown>)
+        ? Boolean((raw.owner_demographics as Record<string, unknown>).liya_shakthi_claimed)
+        : undefined,
   };
 }
 
@@ -708,6 +717,31 @@ export default function BankDossier() {
         coveragePercent={data.ncgi_coverage_percent ?? (ncgi_eligible ? 75 : 0)}
         className="fade-in-up"
       />
+
+      {/* 3b. Liya Shakthi verification prompt */}
+      {data.liya_shakthi_claimed && (
+        <section
+          className="card p-5 border-amber-500/30 bg-amber-500/5 fade-in-up"
+          style={{ animationDelay: "0.2s" }}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center shrink-0">
+              <Award className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-semibold text-amber-300 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Liya Shakthi Verification Required
+              </h2>
+              <p className="text-xs text-amber-200/70 mt-1.5 leading-relaxed">
+                This borrower has declared NCGI Liya Shakthi membership. Please
+                verify membership status through your NCGI portal before
+                approving the 80% guarantee.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 4. AI Appraisal Cheat Sheet */}
       {ai_reasoning.length > 0 && (

@@ -120,6 +120,41 @@ def verify_token(token: str, *, secret: str | None = None) -> dict[str, Any] | N
     return payload
 
 
+# ── NIC Gender Detection ────────────────────────────────────────────────────
+
+
+def detect_gender_from_nic(nic: str) -> str:
+    """Detect gender from Sri Lankan NIC number.
+
+    Old format (9 digits + V/X): digits 3-5 encode day-of-year
+    New format (12 digits): digits 5-7 encode day-of-year
+    Values 001-366 = male, 501-866 = female (subtract 500 for actual day)
+
+    Returns:
+        "female" or "male"
+
+    Raises:
+        ValueError: if NIC format is unrecognized
+    """
+    nic = nic.strip().upper()
+
+    if len(nic) == 10 and nic[-1] in ("V", "X"):
+        # Old format: 9 digits + V/X
+        day_code = int(nic[2:5])
+    elif len(nic) == 12 and nic.isdigit():
+        # New format: 12 digits
+        day_code = int(nic[4:7])
+    else:
+        raise ValueError(f"Unrecognized NIC format: {nic}")
+
+    if 501 <= day_code <= 866:
+        return "female"
+    elif 1 <= day_code <= 366:
+        return "male"
+    else:
+        raise ValueError(f"Invalid day-of-year code in NIC: {day_code}")
+
+
 # ── PDPA Compliance Helpers ─────────────────────────────────────────────────
 
 
