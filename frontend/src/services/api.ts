@@ -112,7 +112,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const isBorrowerPath = window.location.pathname.startsWith("/borrower");
   const tokenKey = isBorrowerPath ? BORROWER_TOKEN_KEY : OFFICER_TOKEN_KEY;
-  const token = sessionStorage.getItem(tokenKey);
+  const token = localStorage.getItem(tokenKey);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -125,10 +125,10 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       const path = window.location.pathname;
       if (path.startsWith("/borrower") && !path.includes("/borrower/login") && !path.includes("/borrower/register")) {
-        sessionStorage.removeItem(BORROWER_TOKEN_KEY);
+        localStorage.removeItem(BORROWER_TOKEN_KEY);
         window.location.href = "/borrower/login";
       } else if (path.startsWith("/bank") && !path.includes("/bank/login")) {
-        sessionStorage.removeItem(OFFICER_TOKEN_KEY);
+        localStorage.removeItem(OFFICER_TOKEN_KEY);
         window.location.href = "/bank/login";
       }
     }

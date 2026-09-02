@@ -51,7 +51,7 @@ export default function BorrowerDashboard() {
     summary: null,
   });
   const [generating, setGenerating] = useState(false);
-  const borrowerName = sessionStorage.getItem("phygital_borrower_name") ?? "Business Owner";
+  const borrowerName = localStorage.getItem("phygital_borrower_name") ?? "Business Owner";
 
   useEffect(() => {
     let cancelled = false;

@@ -20,7 +20,7 @@ export default function Login() {
     setLoading(true);
     try {
       const data = await loginOfficer(username.trim(), password);
-      sessionStorage.setItem("phygital_access_token", data.access_token);
+      localStorage.setItem("phygital_access_token", data.access_token);
       navigate("/", { replace: true });
     } catch (err: unknown) {
       const msg =
