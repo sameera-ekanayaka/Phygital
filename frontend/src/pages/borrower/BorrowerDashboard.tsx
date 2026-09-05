@@ -18,12 +18,13 @@ import {
   Calendar,
 } from "lucide-react";
 import {
+  api,
+  fetchTransactions,
+  generateDossier,
   getTransactionSummary,
-  getTransactions,
   getMonthlySummary,
   deleteTransaction,
   updateTransaction,
-  generateReport,
   type TransactionSummaryResponse,
   type TransactionListResponse,
   type TransactionRecord,
@@ -63,15 +64,15 @@ const FILTER_TABS = [
 ] as const;
 
 const TYPE_COLOR: Record<string, string> = {
-  business_revenue: "text-green-700",
-  business_expense: "text-orange-700",
-  personal_expense: "text-blue-700",
+  business_revenue: "text-emerald-700",
+  business_expense: "text-amber-800",
+  personal_expense: "text-warm-700",
 };
 
 const TYPE_BG: Record<string, string> = {
-  business_revenue: "bg-green-100 text-green-700 border-green-200",
-  business_expense: "bg-orange-100 text-orange-700 border-orange-200",
-  personal_expense: "bg-blue-100 text-blue-700 border-blue-200",
+  business_revenue: "bg-emerald-50 text-emerald-800 border-emerald-300/80",
+  business_expense: "bg-amber-50 text-amber-900 border-amber-300/80",
+  personal_expense: "bg-cream-200 text-warm-800 border-cream-300",
 };
 
 export default function BorrowerDashboard() {
@@ -98,9 +99,9 @@ export default function BorrowerDashboard() {
   const fetchData = useCallback(async () => {
     try {
       const [summary, transactions, monthly] = await Promise.all([
-        getTransactionSummary(),
-        getTransactions(),
-        getMonthlySummary(),
+        api.getTransactionSummary(),
+        api.fetchTransactions(),
+        api.getMonthlySummary(),
       ]);
       return { summary, transactions, monthly };
     } catch {
@@ -177,25 +178,30 @@ export default function BorrowerDashboard() {
     }
   }, [editingId, editDraft, refetch]);
 
-  /* ── Generate report ─────────────────────────────────────────────── */
-  const handleGenerateReport = useCallback(async () => {
+  /* ── Submit to Bank / Generate Dossier ────────────────────────────── */
+  const txCount = state.transactions?.total_count ?? state.transactions?.items?.length ?? state.summary?.transaction_count ?? 0;
+
+  const handleSubmitToBank = useCallback(async () => {
+    if (txCount < 3) return;
     setGenerating(true);
     try {
-      const response = await generateReport();
-      navigate("/borrower/processing", {
+      const response = await api.generateDossier();
+      const verification_code = response.verification_code;
+      navigate("/borrower/success", {
         state: {
-          verificationCode: response.verification_code,
-          token: response.token,
+          code: verification_code,
+          verificationCode: verification_code,
+          expiresAt: response.expires_at,
         },
       });
-    } catch {
+    } catch (err: any) {
       setGenerating(false);
       setState((prev) => ({
         ...prev,
-        error: "Failed to generate report. Please try again.",
+        error: err?.response?.data?.detail || "Failed to generate credit dossier. Please try again.",
       }));
     }
-  }, [navigate]);
+  }, [txCount, navigate]);
 
   /* ── Loading ─────────────────────────────────────────────────────── */
   if (state.loading) {
@@ -311,53 +317,53 @@ export default function BorrowerDashboard() {
       {/* Summary cards — 4 columns */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 b-fade-in-up" style={{ animationDelay: "0.1s" }}>
         {/* Total Revenue */}
-        <div className="b-card p-4 border-green-200 bg-green-50/60 overflow-hidden">
+        <div className="b-card p-3.5 sm:p-4 border-emerald-200/80 bg-emerald-50/70 overflow-hidden shadow-sm">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <TrendingUp className="w-4 h-4 text-green-600 shrink-0" />
-            <span className="text-[10px] sm:text-xs font-semibold text-green-700 uppercase tracking-wide">
+            <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-emerald-800 uppercase tracking-wide">
               Revenue
             </span>
           </div>
-          <p className="text-base sm:text-xl font-bold text-green-800 truncate">
+          <p className="text-sm sm:text-lg lg:text-xl font-bold text-emerald-950 break-words">
             {formatLKR(summary.total_revenue)}
           </p>
         </div>
 
         {/* Total Expenses */}
-        <div className="b-card p-4 border-orange-200 bg-orange-50/60 overflow-hidden">
+        <div className="b-card p-3.5 sm:p-4 border-amber-200/80 bg-amber-50/70 overflow-hidden shadow-sm">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <TrendingDown className="w-4 h-4 text-orange-600 shrink-0" />
-            <span className="text-[10px] sm:text-xs font-semibold text-orange-700 uppercase tracking-wide">
+            <TrendingDown className="w-4 h-4 text-amber-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-amber-800 uppercase tracking-wide">
               Expenses
             </span>
           </div>
-          <p className="text-base sm:text-xl font-bold text-orange-800 truncate">
+          <p className="text-sm sm:text-lg lg:text-xl font-bold text-amber-950 break-words">
             {formatLKR(summary.total_expenses)}
           </p>
         </div>
 
         {/* Personal Expenses */}
-        <div className="b-card p-4 border-blue-200 bg-blue-50/60 overflow-hidden">
+        <div className="b-card p-3.5 sm:p-4 border-cream-300 bg-cream-100/90 overflow-hidden shadow-sm">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <DollarSign className="w-4 h-4 text-blue-600 shrink-0" />
-            <span className="text-[10px] sm:text-xs font-semibold text-blue-700 uppercase tracking-wide">
+            <DollarSign className="w-4 h-4 text-warm-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-warm-700 uppercase tracking-wide">
               Personal
             </span>
           </div>
-          <p className="text-base sm:text-xl font-bold text-blue-800 truncate">
+          <p className="text-sm sm:text-lg lg:text-xl font-bold text-warm-900 break-words">
             {formatLKR(summary.total_personal)}
           </p>
         </div>
 
         {/* Net Income */}
-        <div className="b-card p-4 border-violet-200 bg-violet-50/60 overflow-hidden">
+        <div className="b-card p-3.5 sm:p-4 border-teal/30 bg-teal/10 overflow-hidden shadow-sm">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <TrendingUp className="w-4 h-4 text-violet-600 shrink-0" />
-            <span className="text-[10px] sm:text-xs font-semibold text-violet-700 uppercase tracking-wide">
+            <TrendingUp className="w-4 h-4 text-teal shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-teal-800 uppercase tracking-wide">
               Net Income
             </span>
           </div>
-          <p className="text-base sm:text-xl font-bold text-violet-800 truncate">
+          <p className="text-sm sm:text-lg lg:text-xl font-bold text-teal-950 break-words">
             {formatLKR(transactions?.net_income ?? (summary.total_revenue - summary.total_expenses))}
           </p>
         </div>
@@ -493,31 +499,57 @@ export default function BorrowerDashboard() {
       )}
 
       {/* CTA Buttons */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 b-fade-in-up" style={{ animationDelay: "0.25s" }}>
-        <button
-          onClick={() => navigate("/borrower/add-transaction")}
-          className="hidden sm:inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
-        >
-          <Plus className="w-4 h-4 shrink-0" />
-          Add Transaction
-        </button>
-        <button
-          onClick={handleGenerateReport}
-          disabled={generating}
-          className="flex-1 w-full sm:w-auto b-btn-primary justify-center text-base px-6 py-3"
-        >
-          {generating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Generating…
-            </>
-          ) : (
-            <>
-              <QrCode className="w-4 h-4 shrink-0" />
-              Generate Report
-            </>
-          )}
-        </button>
+      <div className="flex flex-col gap-2 w-full b-fade-in-up" style={{ animationDelay: "0.25s" }}>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <button
+            onClick={() => navigate("/borrower/add-transaction")}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
+          >
+            <Plus className="w-4 h-4 shrink-0" />
+            Add Transaction
+          </button>
+          <div className="relative group flex-1 w-full sm:w-auto">
+            <button
+              onClick={handleSubmitToBank}
+              disabled={generating || txCount < 3}
+              className={`w-full b-btn-primary justify-center text-base px-6 py-3.5 transition-all ${
+                txCount < 3
+                  ? "!opacity-50 !cursor-not-allowed !hover:bg-gold !hover:shadow-none pointer-events-auto"
+                  : ""
+              }`}
+              title={
+                txCount < 3
+                  ? "Add more transactions to build a viable credit dossier."
+                  : "Submit to Bank for credit assessment"
+              }
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Generating Dossier…
+                </>
+              ) : (
+                <>
+                  <QrCode className="w-5 h-5 shrink-0" />
+                  Submit to Bank
+                </>
+              )}
+            </button>
+            {txCount < 3 && (
+              <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2 bg-navy-900 text-cream-100 text-xs text-center rounded-lg shadow-xl border border-gold/30 z-30 pointer-events-none">
+                Add more transactions to build a viable credit dossier.
+              </div>
+            )}
+          </div>
+        </div>
+        {txCount < 3 && (
+          <div className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-amber-50/80 border border-amber-200 text-xs text-amber-800">
+            <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span>
+              Add at least 3 transactions to build a viable credit dossier ({txCount}/3 added).
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Monthly Summary — collapsible */}
@@ -554,9 +586,9 @@ export default function BorrowerDashboard() {
                     {monthly.months.map((m) => (
                       <tr key={m.month} className="border-t border-cream-100">
                         <td className="py-2 font-medium text-warm-800">{m.month}</td>
-                        <td className="py-2 text-right text-green-700">{formatLKR(m.revenue)}</td>
-                        <td className="py-2 text-right text-orange-700">{formatLKR(m.expenses)}</td>
-                        <td className={`py-2 text-right font-semibold ${m.net_income >= 0 ? "text-violet-700" : "text-red-600"}`}>
+                        <td className="py-2 text-right text-emerald-700 font-medium">{formatLKR(m.revenue)}</td>
+                        <td className="py-2 text-right text-amber-800 font-medium">{formatLKR(m.expenses)}</td>
+                        <td className={`py-2 text-right font-semibold ${m.net_income >= 0 ? "text-teal-700" : "text-red-600"}`}>
                           {formatLKR(m.net_income)}
                         </td>
                         <td className="py-2 text-right text-warm-500">{m.count}</td>

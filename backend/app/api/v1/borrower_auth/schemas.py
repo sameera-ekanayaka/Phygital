@@ -4,7 +4,9 @@ Defines request/response models for borrower onboarding, OTP verification,
 login, and profile retrieval.
 """
 
-from pydantic import BaseModel
+import re
+from pydantic import BaseModel, Field, field_validator
+from app.core.validation import validate_sri_lankan_nic, validate_sri_lankan_phone
 
 
 # ── Registration ─────────────────────────────────────────────────────────────
@@ -13,20 +15,33 @@ from pydantic import BaseModel
 class BorrowerRegisterRequest(BaseModel):
     """Request body for borrower self-registration."""
 
-    name: str
-    """Full name of the borrower."""
-
-    phone: str
-    """Sri Lankan mobile number (e.g., '0771234567')."""
-
-    nic: str
-    """National Identity Card number (e.g., '896543456V')."""
-
-    password: str
-    """Chosen password for the borrower account."""
-
+    name: str = Field(..., min_length=2, max_length=100, description="Full name of the borrower.")
+    phone: str = Field(..., description="Sri Lankan mobile number (e.g., '0771234567').")
+    nic: str = Field(..., description="National Identity Card number (e.g., '896543456V').")
+    password: str = Field(..., min_length=6, max_length=128, description="Chosen password for the borrower account.")
     liya_shakthi_member: bool = False
     """Self-declared NCGI Liya Shakthi membership (women-owned micro-enterprises)."""
+
+    @field_validator("name")
+    @classmethod
+    def check_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Full name must be at least 2 characters.")
+        if not re.match(r"^[\w\s\.\'-]+$", v, re.UNICODE):
+            raise ValueError("Full name contains invalid characters.")
+        return v
+
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, v: str) -> str:
+        return validate_sri_lankan_phone(v)
+
+    @field_validator("nic")
+    @classmethod
+    def check_nic(cls, v: str) -> str:
+        canonical_nic, _ = validate_sri_lankan_nic(v)
+        return canonical_nic
 
 
 class BorrowerRegisterResponse(BaseModel):
@@ -48,11 +63,16 @@ class BorrowerRegisterResponse(BaseModel):
 class BorrowerLoginRequest(BaseModel):
     """Request body for borrower login via NIC or phone."""
 
-    identifier: str
-    """NIC or phone number used to identify the borrower."""
+    identifier: str = Field(..., min_length=3, max_length=50, description="NIC or phone number used to identify the borrower.")
+    password: str = Field(..., min_length=1, max_length=128, description="Account password.")
 
-    password: str
-    """Account password."""
+    @field_validator("identifier")
+    @classmethod
+    def check_identifier(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Identifier cannot be empty.")
+        return v
 
 
 class BorrowerLoginResponse(BaseModel):
@@ -74,11 +94,21 @@ class BorrowerLoginResponse(BaseModel):
 class OtpVerifyRequest(BaseModel):
     """Request body for OTP verification."""
 
-    phone: str
-    """Phone number the OTP was sent to."""
+    phone: str = Field(..., description="Phone number the OTP was sent to.")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="Six-digit OTP code entered by the borrower.")
 
-    otp_code: str
-    """Six-digit OTP code entered by the borrower."""
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, v: str) -> str:
+        return validate_sri_lankan_phone(v)
+
+    @field_validator("otp_code")
+    @classmethod
+    def check_otp(cls, v: str) -> str:
+        v = v.strip()
+        if not re.match(r"^\d{6}$", v):
+            raise ValueError("OTP code must be exactly 6 numeric digits.")
+        return v
 
 
 class OtpVerifyResponse(BaseModel):

@@ -12,6 +12,7 @@ from app.api.v1.ingest.service import process_upload
 from app.api.v1.transactions.service import append_transaction
 from app.core.auth import get_current_user
 from app.core.limiter import limiter
+from app.core.validation import validate_uploaded_file
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ async def upload(
     Returns:
         IngestResponse with extracted raw text and structured financial data.
     """
-    # ── File count and size validation ─────────────────────────────────────
+    # ── File count, size, and format validation ─────────────────────────────
     MAX_FILES = 10
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -49,6 +50,11 @@ async def upload(
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES} files allowed per request.")
 
     for f in files:
+        try:
+            validate_uploaded_file(f.filename or "unknown", f.content_type)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
         content = await f.read()
         if len(content) > MAX_FILE_SIZE:
             raise HTTPException(

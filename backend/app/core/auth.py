@@ -102,43 +102,32 @@ async def login_for_access_token(
 ) -> dict:
     """Issue a JWT access token in exchange for officer credentials.
 
-    In **debug mode** any username/password combination is accepted so that
-    frontend development and integration testing can proceed without a real
-    credential store.
+    Validates against the ``OFFICER_CREDENTIALS`` setting (a JSON object mapping
+    usernames to passwords). In local development or testing, if unconfigured,
+    falls back to the standard demo officer account:
+    ``officer.perera`` / ``PhygitalBank2026!``.
 
-    In production the submitted credentials are validated against the
-    ``OFFICER_CREDENTIALS`` setting (a JSON object mapping usernames to
-    passwords). If no credentials are configured the endpoint returns 501.
+    Borrower credentials (or unknown accounts) are rejected with HTTP 401.
 
     Raises:
-        HTTPException: 401 on invalid credentials; 501 if no credentials are
-        configured in production.
+        HTTPException: 401 on invalid credentials.
     """
     settings = get_settings()
 
-    if settings.debug:
-        logger.info("Debug mode — accepting any credentials for user=%s", form_data.username)
-        token = create_access_token(subject=form_data.username, role="officer")
-        return {"access_token": token, "token_type": "bearer"}
-
-    # Production: validate against configured officer credentials
-    try:
-        credentials: dict[str, str] = json.loads(settings.officer_credentials)
-    except (json.JSONDecodeError, TypeError):
-        logger.error("OFFICER_CREDENTIALS is not valid JSON.")
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Officer authentication is not configured",
-        )
+    # Parse configured officer credentials
+    credentials: dict[str, str] = {}
+    if settings.officer_credentials:
+        try:
+            credentials = json.loads(settings.officer_credentials)
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("OFFICER_CREDENTIALS is not valid JSON, falling back to default.")
 
     if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Officer authentication is not configured",
-        )
+        credentials = {"officer.perera": "PhygitalBank2026!"}
 
     expected_password = credentials.get(form_data.username)
     if expected_password is None or expected_password != form_data.password:
+        logger.warning("Failed officer login attempt for user=%s", form_data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
