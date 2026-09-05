@@ -346,6 +346,6 @@ Phygital/
 
 ## 👥 Contributors & Acknowledgements
 
-Developed for the **National FinTech Buildathon 2026** by team **Phygital**.
+Developed for the **Alibaba AI Buildathon 2026** by team **Nexora**.
 - Dedicated to the millions of informal entrepreneurs across Sri Lanka powering our local markets.
 - Compliant with **Central Bank of Sri Lanka (CBSL)** Financial Inclusion Framework and **NCGI** Credit Guarantee Directives.
