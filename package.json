@@ -1,0 +1,7 @@
+{
+  "name": "phygital",
+  "private": true,
+  "scripts": {
+    "build": "npm run --prefix frontend build"
+  }
+}
