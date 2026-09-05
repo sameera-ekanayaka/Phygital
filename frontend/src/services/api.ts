@@ -96,6 +96,56 @@ export interface GenerateCodeResponse {
   expires_at: string;
 }
 
+export interface TransactionCreateRequest {
+  amount: number;
+  transaction_type: "business_revenue" | "business_expense" | "personal_expense";
+  category: string;
+  description: string;
+  notes?: string;
+}
+
+export interface TransactionUpdateRequest {
+  amount?: number;
+  transaction_type?: "business_revenue" | "business_expense" | "personal_expense";
+  category?: string;
+  description?: string;
+  notes?: string;
+}
+
+export interface TransactionRecord {
+  id: string;
+  amount: number;
+  transaction_type: "business_revenue" | "business_expense" | "personal_expense";
+  category: string;
+  description: string;
+  notes: string | null;
+  source: "manual" | "ai_upload";
+  confidence_score: number;
+  created_at: string;
+}
+
+export interface TransactionListResponse {
+  items: TransactionRecord[];
+  total_count: number;
+  total_revenue: number;
+  total_expenses: number;
+  total_personal: number;
+  net_income: number;
+}
+
+export interface MonthlySummaryItem {
+  month: string;
+  revenue: number;
+  expenses: number;
+  personal: number;
+  net_income: number;
+  count: number;
+}
+
+export interface MonthlySummaryResponse {
+  months: MonthlySummaryItem[];
+}
+
 /* ------------------------------------------------------------------ */
 /*  Axios instance                                                     */
 /* ------------------------------------------------------------------ */
@@ -112,7 +162,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   const isBorrowerPath = window.location.pathname.startsWith("/borrower");
   const tokenKey = isBorrowerPath ? BORROWER_TOKEN_KEY : OFFICER_TOKEN_KEY;
-  const token = sessionStorage.getItem(tokenKey);
+  const token = localStorage.getItem(tokenKey);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -125,10 +175,10 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       const path = window.location.pathname;
       if (path.startsWith("/borrower") && !path.includes("/borrower/login") && !path.includes("/borrower/register")) {
-        sessionStorage.removeItem(BORROWER_TOKEN_KEY);
+        localStorage.removeItem(BORROWER_TOKEN_KEY);
         window.location.href = "/borrower/login";
       } else if (path.startsWith("/bank") && !path.includes("/bank/login")) {
-        sessionStorage.removeItem(OFFICER_TOKEN_KEY);
+        localStorage.removeItem(OFFICER_TOKEN_KEY);
         window.location.href = "/bank/login";
       }
     }
@@ -201,6 +251,47 @@ export async function generateSessionCode(): Promise<GenerateCodeResponse> {
 
 export async function clearTransactionSession(): Promise<{ message: string }> {
   const { data: res } = await apiClient.delete<{ message: string }>("/transactions/session");
+  return res;
+}
+
+export async function createTransaction(
+  data: TransactionCreateRequest,
+): Promise<TransactionRecord> {
+  const { data: res } = await apiClient.post<TransactionRecord>("/transactions/", data);
+  return res;
+}
+
+export async function getTransactions(
+  params?: { type?: string; month?: string },
+): Promise<TransactionListResponse> {
+  const { data: res } = await apiClient.get<TransactionListResponse>("/transactions/", { params });
+  return res;
+}
+
+export async function getTransaction(id: string): Promise<TransactionRecord> {
+  const { data: res } = await apiClient.get<TransactionRecord>(`/transactions/${id}`);
+  return res;
+}
+
+export async function updateTransaction(
+  id: string,
+  data: TransactionUpdateRequest,
+): Promise<TransactionRecord> {
+  const { data: res } = await apiClient.put<TransactionRecord>(`/transactions/${id}`, data);
+  return res;
+}
+
+export async function deleteTransaction(id: string): Promise<void> {
+  await apiClient.delete(`/transactions/${id}`);
+}
+
+export async function getMonthlySummary(): Promise<MonthlySummaryResponse> {
+  const { data: res } = await apiClient.get<MonthlySummaryResponse>("/transactions/monthly-summary");
+  return res;
+}
+
+export async function generateReport(): Promise<GenerateCodeResponse> {
+  const { data: res } = await apiClient.post<GenerateCodeResponse>("/transactions/generate-report");
   return res;
 }
 

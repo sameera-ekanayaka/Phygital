@@ -22,8 +22,8 @@ export default function BorrowerLogin() {
     setLoading(true);
     try {
       const data = await loginBorrower(identifier.trim(), password);
-      sessionStorage.setItem(BORROWER_TOKEN_KEY, data.access_token);
-      sessionStorage.setItem("phygital_borrower_name", data.borrower_name);
+      localStorage.setItem(BORROWER_TOKEN_KEY, data.access_token);
+      localStorage.setItem("phygital_borrower_name", data.borrower_name);
       navigate("/borrower/dashboard");
     } catch (err: unknown) {
       const msg =

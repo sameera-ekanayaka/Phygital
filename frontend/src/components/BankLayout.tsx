@@ -24,17 +24,17 @@ export default function BankLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentTitle = pageTitles[location.pathname] ?? "Verification Code";
-  const officerName = sessionStorage.getItem("phygital_officer_name") || "Officer";
+  const officerName = localStorage.getItem("phygital_officer_name") || "Officer";
 
   function handleLogout() {
-    sessionStorage.removeItem("phygital_access_token");
-    sessionStorage.removeItem("phygital_officer_name");
+    localStorage.removeItem("phygital_access_token");
+    localStorage.removeItem("phygital_officer_name");
     navigate("/");
   }
 
   /* Auth wall — redirect to login when no token is present */
   useEffect(() => {
-    const token = sessionStorage.getItem("phygital_access_token");
+    const token = localStorage.getItem("phygital_access_token");
     if (!token) {
       navigate("/bank/login", { replace: true });
     }

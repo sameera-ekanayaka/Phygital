@@ -11,17 +11,17 @@ export default function BorrowerLayout() {
 
   /* Auth wall — redirect to login when no token is present */
   useEffect(() => {
-    const token = sessionStorage.getItem(BORROWER_TOKEN_KEY);
+    const token = localStorage.getItem(BORROWER_TOKEN_KEY);
     if (!token) {
       navigate("/borrower/login", { replace: true });
     }
   }, [location.pathname, navigate]);
 
-  const borrowerName = sessionStorage.getItem(BORROWER_NAME_KEY);
+  const borrowerName = localStorage.getItem(BORROWER_NAME_KEY);
 
   function handleLogout() {
-    sessionStorage.removeItem(BORROWER_TOKEN_KEY);
-    sessionStorage.removeItem(BORROWER_NAME_KEY);
+    localStorage.removeItem(BORROWER_TOKEN_KEY);
+    localStorage.removeItem(BORROWER_NAME_KEY);
     navigate("/");
   }
 
