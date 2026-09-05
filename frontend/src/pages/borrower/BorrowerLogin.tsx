@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { LogIn, CreditCard, Lock, Eye, EyeOff, Loader2, AlertCircle, Shield } from "lucide-react";
+import { LogIn, CreditCard, Lock, Eye, EyeOff, Loader2, AlertCircle, Shield, Sparkles, Check } from "lucide-react";
 import { loginBorrower, BORROWER_TOKEN_KEY } from "../../services/api";
 
 export default function BorrowerLogin() {
@@ -11,12 +11,34 @@ export default function BorrowerLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  function handleAutoFill() {
+    setIdentifier("896543456V");
+    setPassword("test1234");
+    setError("");
+    setAutoFilled(true);
+    setTimeout(() => setAutoFilled(false), 2500);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!identifier.trim() || !password) {
-      setError("Please enter both fields.");
+    const trimmedId = identifier.trim();
+    if (!trimmedId) {
+      setError("Please enter your NIC or mobile number.");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
+
+    // Validate identifier format
+    const isPhone = /^(?:\+?94|0)?(7\d{8})$/.test(trimmedId.replace(/[\s-]/g, ""));
+    const isNic = /^\d{9}[VXvx]$/.test(trimmedId) || /^\d{12}$/.test(trimmedId);
+    if (!isPhone && !isNic) {
+      setError("Please enter a valid Sri Lankan NIC (e.g. 896543456V) or 10-digit mobile number (e.g. 0771234567).");
       return;
     }
     setLoading(true);
@@ -151,19 +173,44 @@ export default function BorrowerLogin() {
 
           {/* Test credentials hint */}
           <div
-            className="b-card px-4 py-3 b-fade-in-up"
+            className="b-card p-4 b-fade-in-up space-y-2.5"
             style={{ animationDelay: "0.12s" }}
           >
-            <p className="text-center text-xs text-warm-600">
-              <span className="font-semibold text-warm-700">Demo: </span>
-              NIC{" "}
-              <code className="font-mono bg-cream-200 px-1.5 py-0.5 rounded text-warm-800 text-[11px]">
-                896543456V
-              </code>{" "}
-              / Password{" "}
-              <code className="font-mono bg-cream-200 px-1.5 py-0.5 rounded text-warm-800 text-[11px]">
-                test1234
-              </code>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-warm-700 tracking-wide uppercase flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-teal" />
+                Demo SME Borrower
+              </span>
+              <button
+                type="button"
+                onClick={handleAutoFill}
+                className="text-[11px] font-semibold text-teal hover:text-teal-dark bg-teal/10 hover:bg-teal/20 px-2.5 py-1 rounded-md border border-teal/30 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                {autoFilled ? (
+                  <>
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span className="text-emerald-600 font-medium">Filled!</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-teal" />
+                    Auto-fill
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-cream-100/90 p-2 rounded-lg border border-cream-300/80">
+                <span className="text-warm-500 block text-[10px] uppercase font-medium tracking-wider mb-0.5">NIC</span>
+                <code className="text-warm-900 font-mono text-[11px] select-all">896543456V</code>
+              </div>
+              <div className="bg-cream-100/90 p-2 rounded-lg border border-cream-300/80">
+                <span className="text-warm-500 block text-[10px] uppercase font-medium tracking-wider mb-0.5">Password</span>
+                <code className="text-warm-900 font-mono text-[11px] select-all">test1234</code>
+              </div>
+            </div>
+            <p className="text-[11px] text-warm-600 leading-relaxed">
+              Binithi Perera · Batik Studio (Pre-seeded SME Borrower with active transactions)
             </p>
           </div>
 

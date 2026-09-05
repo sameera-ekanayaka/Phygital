@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type KeyboardEvent, type ChangeEvent } fro
 import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
 import { ShieldCheck, Info, Loader2, AlertCircle, RotateCcw, Shield } from "lucide-react";
 import { verifyOtp } from "../../services/api";
+import { validateOtpCode } from "../../utils/validation";
 
 const OTP_LENGTH = 6;
 
@@ -84,6 +85,11 @@ export default function BorrowerOTP() {
 
   async function handleVerify(code: string) {
     if (!phone) return;
+    const validation = validateOtpCode(code);
+    if (!validation.isValid) {
+      setError(validation.error || "Please enter a valid 6-digit code.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {

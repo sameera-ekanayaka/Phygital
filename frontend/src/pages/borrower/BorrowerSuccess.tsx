@@ -4,8 +4,9 @@ import { CheckCircle, Copy, Clock, Home, Check, Printer, Plus } from "lucide-rea
 import { useCountdown } from "../../hooks/useCountdown";
 
 interface SuccessState {
-  verificationCode: string;
-  expiresAt: string;
+  verificationCode?: string;
+  code?: string;
+  expiresAt?: string;
 }
 
 export default function BorrowerSuccess() {
@@ -14,20 +15,23 @@ export default function BorrowerSuccess() {
   const state = location.state as SuccessState | null;
   const [copied, setCopied] = useState(false);
 
-  // Redirect if no state
-  if (!state) return <Navigate to="/borrower/upload" replace />;
+  const verificationCode = state?.code || state?.verificationCode || "";
+  const expiresAt = state?.expiresAt || new Date(Date.now() + 72 * 3600 * 1000).toISOString();
 
-  const { days, hours, minutes, seconds, isExpired } = useCountdown(state.expiresAt);
+  // Redirect if no state / code
+  if (!state || !verificationCode) return <Navigate to="/borrower/dashboard" replace />;
+
+  const { days, hours, minutes, seconds, isExpired } = useCountdown(expiresAt);
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(state.verificationCode);
+      await navigator.clipboard.writeText(verificationCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement("textarea");
-      textarea.value = state.verificationCode;
+      textarea.value = verificationCode;
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand("copy");
@@ -35,7 +39,7 @@ export default function BorrowerSuccess() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [state.verificationCode]);
+  }, [verificationCode]);
 
   return (
     <div className="max-w-lg mx-auto flex flex-col items-center text-center">
