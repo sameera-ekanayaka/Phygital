@@ -25,3 +25,11 @@ class ExtractedTransaction(BaseModel):
 
     detected_language: Literal["si", "ta", "en", "singlish"]
     """Language detected for the source text that produced this transaction."""
+
+
+# Canonical transaction categories used by both manual entry and AI extraction
+TRANSACTION_CATEGORIES: dict[str, list[str]] = {
+    "business_revenue": ["sales", "services", "rent_income", "commission", "other"],
+    "business_expense": ["inventory", "transport", "utilities", "wages", "rent", "maintenance", "other"],
+    "personal_expense": ["food", "household", "education", "medical", "clothing", "other"],
+}
