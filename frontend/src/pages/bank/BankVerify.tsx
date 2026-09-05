@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldCheck, Loader2, AlertCircle, Hash } from "lucide-react";
 import { resolveVerificationCode } from "../../services/api";
+import { validateVerificationCode } from "../../utils/validation";
 
 /**
  * Format raw input into PHYG-XXXX-XXXX pattern.
@@ -44,15 +45,17 @@ export default function BankVerify() {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      const cleaned = code.replace(/-/g, "");
-      if (cleaned.length < 8) return; // need at least 8 chars
+      const fullCode = `PHYG-${code}`;
+      const validation = validateVerificationCode(fullCode);
+      if (!validation.isValid) {
+        setError(validation.error || "Please enter a valid 8-character verification code.");
+        return;
+      }
 
       setLoading(true);
       setError(null);
 
       try {
-        // Prepend PHYG- prefix for the API call
-        const fullCode = `PHYG-${code}`;
         const res = await resolveVerificationCode(fullCode);
         // Navigate to bank dossier with the HMAC token
         navigate(`/bank/dossier?token=${encodeURIComponent(res.token)}`);
@@ -74,7 +77,7 @@ export default function BankVerify() {
     [code, navigate],
   );
 
-  const canSubmit = code.replace(/-/g, "").length === 8 && !loading;
+  const canSubmit = validateVerificationCode(`PHYG-${code}`).isValid && !loading;
 
   return (
     <div className="max-w-md mx-auto flex flex-col items-center">
@@ -109,9 +112,11 @@ export default function BankVerify() {
 
         {/* Input */}
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-mono text-slate-500 pointer-events-none select-none">
-            PHYG-
-          </span>
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none select-none">
+            <span className="text-xs font-mono font-bold text-gold bg-gold/15 px-2 py-1 rounded border border-gold/30 tracking-wider shadow-sm">
+              PHYG-
+            </span>
+          </div>
           <input
             ref={inputRef}
             type="text"
@@ -121,7 +126,7 @@ export default function BankVerify() {
             placeholder="XXXX-XXXX"
             autoComplete="off"
             spellCheck={false}
-            className="w-full bg-navy-900 border border-navy-600 rounded-lg pl-[4.2rem] pr-4 py-3.5 text-sm font-mono text-white tracking-wider placeholder-slate-600 focus:outline-none focus:border-gold/50 focus:ring-1 focus:ring-gold/30 transition-all uppercase"
+            className="w-full bg-navy-900 border border-navy-600/80 rounded-lg pl-24 pr-4 py-3.5 text-sm font-mono text-white tracking-wider placeholder-slate-600 focus:outline-none focus:border-gold/60 focus:ring-1 focus:ring-gold/30 transition-all uppercase shadow-inner"
           />
         </div>
 

@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Loader2 } from "lucide-react";
+import { Shield, Loader2, KeyRound, Check, Sparkles } from "lucide-react";
 import { loginOfficer } from "../../services/api";
 
 export default function BankLogin() {
@@ -9,6 +9,15 @@ export default function BankLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [autoFilled, setAutoFilled] = useState(false);
+
+  function handleAutoFill() {
+    setUsername("officer.perera");
+    setPassword("PhygitalBank2026!");
+    setError("");
+    setAutoFilled(true);
+    setTimeout(() => setAutoFilled(false), 2500);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -27,7 +36,7 @@ export default function BankLogin() {
       const msg =
         err instanceof Error && "response" in err
           ? ((err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-            "Authentication failed. Please try again.")
+            "Authentication failed. Please check credentials.")
           : "Network error. Please check your connection and try again.";
       setError(msg);
     } finally {
@@ -50,12 +59,12 @@ export default function BankLogin() {
       <div className="w-full max-w-sm fade-in-up relative z-10">
         {/* Brand */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-11 h-11 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-xl bg-gold/10 border border-gold/30 flex items-center justify-center shadow-lg shadow-gold/5">
             <Shield className="w-5 h-5 text-gold" />
           </div>
           <div className="text-center">
             <h1 className="text-xl font-bold text-white tracking-tight">Phygital</h1>
-            <p className="text-xs text-slate-400 mt-0.5">Credit Assessment Platform</p>
+            <p className="text-xs text-slate-400 mt-0.5">Credit Assessment Platform · Bank Portal</p>
           </div>
         </div>
 
@@ -123,10 +132,52 @@ export default function BankLogin() {
                 Signing in…
               </>
             ) : (
-              "Sign In"
+              "Sign In as Bank Officer"
             )}
           </button>
         </form>
+
+        {/* Demo Credentials Helper Box */}
+        <div className="mt-4 p-4 rounded-xl bg-navy-800/80 border border-gold/20 backdrop-blur-sm space-y-2.5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gold tracking-wide uppercase flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5" />
+              Demo Officer Credentials
+            </span>
+            <button
+              type="button"
+              onClick={handleAutoFill}
+              className="text-[11px] font-semibold text-gold hover:text-white bg-gold/15 hover:bg-gold/30 px-2.5 py-1 rounded-md border border-gold/40 transition-all flex items-center gap-1 cursor-pointer"
+            >
+              {autoFilled ? (
+                <>
+                  <Check className="w-3 h-3 text-emerald-400" />
+                  <span className="text-emerald-400">Filled!</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3 h-3" />
+                  Auto-fill
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="bg-navy-900/80 p-2 rounded-lg border border-navy-700/60">
+              <span className="text-slate-400 block text-[10px] uppercase font-medium tracking-wider mb-0.5">Officer ID</span>
+              <code className="text-white font-mono text-[11px] select-all">officer.perera</code>
+            </div>
+            <div className="bg-navy-900/80 p-2 rounded-lg border border-navy-700/60">
+              <span className="text-slate-400 block text-[10px] uppercase font-medium tracking-wider mb-0.5">Password</span>
+              <code className="text-white font-mono text-[11px] select-all">PhygitalBank2026!</code>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-400/90 leading-relaxed">
+            Grants credit assessment access for code verification and NCGI dossier evaluation.
+          </p>
+        </div>
 
         <p className="text-center text-[11px] text-slate-600 mt-5">
           Phygital — Central Bank of Sri Lanka · NCGI-backed SME credit

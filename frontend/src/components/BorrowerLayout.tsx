@@ -26,7 +26,7 @@ export default function BorrowerLayout() {
   }
 
   return (
-    <div className="borrower-portal min-h-screen b-paper-bg flex flex-col">
+    <div className="borrower-portal min-h-screen bg-cream-100 b-paper-bg flex flex-col text-warm-900">
       {/* Top bar */}
       <header className="flex items-center justify-between px-5 py-4 bg-cream-50/80 backdrop-blur-sm border-b border-cream-300/60">
         <Link to="/borrower/dashboard" className="flex items-center gap-2.5">

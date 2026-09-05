@@ -7,7 +7,8 @@ request/response models for the daily manual transaction log.
 
 from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
+from app.core.validation import validate_transaction_amount
 
 
 class TransactionSessionItem(BaseModel):
@@ -45,25 +46,54 @@ class GenerateCodeResponse(BaseModel):
 class TransactionCreateRequest(BaseModel):
     """Request body for creating a manual transaction."""
 
-    amount: float = Field(..., gt=0, description="Transaction amount in LKR.")
+    amount: float = Field(..., gt=0, le=100_000_000, description="Transaction amount in LKR.")
     transaction_type: Literal["business_revenue", "business_expense", "personal_expense"] = Field(
         ..., description="High-level classification."
     )
-    category: str = Field(..., description="Fine-grained category (e.g., sales, inventory, food).")
-    description: str = Field(..., max_length=500, description="Brief note about the transaction.")
+    category: str = Field(..., min_length=1, max_length=50, description="Fine-grained category (e.g., sales, inventory, food).")
+    description: str = Field(..., min_length=1, max_length=500, description="Brief note about the transaction.")
     notes: str | None = Field(default=None, max_length=1000, description="Optional additional notes.")
+
+    @field_validator("amount")
+    @classmethod
+    def check_amount(cls, v: float) -> float:
+        return validate_transaction_amount(v)
+
+    @field_validator("category", "description")
+    @classmethod
+    def strip_text(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Field cannot be empty.")
+        return v
 
 
 class TransactionUpdateRequest(BaseModel):
     """Partial update for an existing transaction."""
 
-    amount: float | None = Field(default=None, gt=0, description="Transaction amount in LKR.")
+    amount: float | None = Field(default=None, gt=0, le=100_000_000, description="Transaction amount in LKR.")
     transaction_type: Literal["business_revenue", "business_expense", "personal_expense"] | None = Field(
         default=None
     )
-    category: str | None = Field(default=None)
+    category: str | None = Field(default=None, max_length=50)
     description: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("amount")
+    @classmethod
+    def check_amount(cls, v: float | None) -> float | None:
+        if v is None:
+            return None
+        return validate_transaction_amount(v)
+
+    @field_validator("category", "description")
+    @classmethod
+    def strip_text(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip()
+            if not v:
+                raise ValueError("Field cannot be empty if provided.")
+        return v
 
 
 class TransactionRecord(BaseModel):

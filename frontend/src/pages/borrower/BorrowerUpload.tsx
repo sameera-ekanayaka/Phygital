@@ -410,8 +410,8 @@ export default function BorrowerUpload() {
       {/* Text notes card */}
       <section className="b-card p-5 md:p-6 b-fade-in-up" style={{ animationDelay: "0.1s" }}>
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
-            <FileText className="w-4 h-4 text-blue-500" />
+          <div className="w-7 h-7 rounded-lg bg-teal/10 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-teal" />
           </div>
           <h2 className="text-sm font-semibold text-warm-900">Additional Notes</h2>
           <span className="text-[11px] text-warm-600/70 ml-auto font-handwritten text-sm">

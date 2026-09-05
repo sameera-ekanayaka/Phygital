@@ -28,12 +28,28 @@ export interface StructuredExtraction {
   overall_confidence: number;
 }
 
+export interface ExtractedTransactionItem {
+  transaction_type: "business_revenue" | "business_expense" | "personal_expense";
+  amount: number;
+  category: string;
+  description: string;
+  confidence_score?: number;
+  detected_language?: string;
+}
+
+export interface IngestExtractionResponse {
+  transactions: ExtractedTransactionItem[];
+  raw_transcript: string;
+  processing_time_ms: number;
+  triangulation_hints: string[];
+}
+
 export interface IngestResponse {
   request_id: string;
   status: string;
   raw_text: string;
   structured_data: StructuredExtraction | null;
-  ai_extraction: Record<string, unknown> | null;
+  ai_extraction: IngestExtractionResponse | null;
   processed_at: string;
 }
 
@@ -244,10 +260,32 @@ export async function getTransactionSummary(): Promise<TransactionSummaryRespons
   return res;
 }
 
-export async function generateSessionCode(): Promise<GenerateCodeResponse> {
+export async function fetchTransactions(
+  params?: { type?: string; month?: string },
+): Promise<TransactionListResponse> {
+  const { data: res } = await apiClient.get<TransactionListResponse>("/transactions/", { params });
+  return res;
+}
+
+export const getTransactions = fetchTransactions;
+
+export async function generateDossier(
+  payload?: DossierGenerateRequest,
+): Promise<GenerateCodeResponse> {
+  if (payload && payload.transactions && payload.transactions.length > 0) {
+    const { data: res } = await apiClient.post<DossierGenerateResponse>("/dossier/generate", payload);
+    return {
+      verification_code: res.verification_code,
+      token: (res as any).token || "",
+      expires_at: res.code_expires_at,
+    };
+  }
   const { data: res } = await apiClient.post<GenerateCodeResponse>("/transactions/generate-code");
   return res;
 }
+
+export const generateSessionCode = generateDossier;
+export const generateReport = generateDossier;
 
 export async function clearTransactionSession(): Promise<{ message: string }> {
   const { data: res } = await apiClient.delete<{ message: string }>("/transactions/session");
@@ -258,13 +296,6 @@ export async function createTransaction(
   data: TransactionCreateRequest,
 ): Promise<TransactionRecord> {
   const { data: res } = await apiClient.post<TransactionRecord>("/transactions/", data);
-  return res;
-}
-
-export async function getTransactions(
-  params?: { type?: string; month?: string },
-): Promise<TransactionListResponse> {
-  const { data: res } = await apiClient.get<TransactionListResponse>("/transactions/", { params });
   return res;
 }
 
@@ -287,11 +318,6 @@ export async function deleteTransaction(id: string): Promise<void> {
 
 export async function getMonthlySummary(): Promise<MonthlySummaryResponse> {
   const { data: res } = await apiClient.get<MonthlySummaryResponse>("/transactions/monthly-summary");
-  return res;
-}
-
-export async function generateReport(): Promise<GenerateCodeResponse> {
-  const { data: res } = await apiClient.post<GenerateCodeResponse>("/transactions/generate-report");
   return res;
 }
 
@@ -429,6 +455,49 @@ export async function executeLoan(request: LoanExecutionRequest): Promise<LoanEx
   return data;
 }
 
+export interface DossierGenerateRequest {
+  transactions?: ExtractedTransactionItem[];
+  requested_loan_amount?: number;
+  loan_tenor_months?: number;
+  merchant_name?: string;
+  merchant_id?: string;
+  owner_demographics?: Record<string, unknown>;
+}
+
+export interface DossierGenerateResponse {
+  dossier: Record<string, unknown>;
+  verification_code: string;
+  code_expires_at: string;
+}
+
+export const api = {
+  fetchTransactions,
+  getTransactions,
+  getTransaction,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  generateDossier,
+  generateSessionCode,
+  generateReport,
+  getTransactionSummary,
+  getMonthlySummary,
+  clearTransactionSession,
+  uploadFiles,
+  uploadFile,
+  submitText,
+  registerBorrower,
+  verifyOtp,
+  loginBorrower,
+  getBorrowerProfile,
+  loginOfficer,
+  generateVerificationCode,
+  verifyQR,
+  resolveVerificationCode,
+  executeLoan,
+};
+
 export { BORROWER_TOKEN_KEY, OFFICER_TOKEN_KEY };
 
 export default apiClient;
+

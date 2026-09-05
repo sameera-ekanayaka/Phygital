@@ -86,9 +86,12 @@ def register_borrower(
     nic_hash = hash_nic(data.nic)
     borrower_key = f"{_BORROWER_PREFIX}{nic_hash}"
 
-    # Duplicate check
+    # Duplicate checks
     if client.exists(borrower_key):
         raise ValueError("A borrower with this NIC is already registered.")
+
+    if client.exists(f"{_PHONE_INDEX_PREFIX}{data.phone}"):
+        raise ValueError("A borrower with this phone number is already registered.")
 
     password_hash = hash_password(data.password)
 
