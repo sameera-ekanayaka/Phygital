@@ -18,6 +18,7 @@ const BorrowerDashboard = lazy(() => import("./pages/borrower/BorrowerDashboard"
 const BorrowerUpload = lazy(() => import("./pages/borrower/BorrowerUpload"));
 const BorrowerProcessing = lazy(() => import("./pages/borrower/BorrowerProcessing"));
 const BorrowerSuccess = lazy(() => import("./pages/borrower/BorrowerSuccess"));
+const BorrowerAddTransaction = lazy(() => import("./pages/borrower/BorrowerAddTransaction"));
 
 // Bank portal
 const BankLogin = lazy(() => import("./pages/bank/BankLogin"));
@@ -51,6 +52,7 @@ export default function App() {
             <Route path="/borrower/upload" element={<BorrowerUpload />} />
             <Route path="/borrower/processing" element={<BorrowerProcessing />} />
             <Route path="/borrower/success" element={<BorrowerSuccess />} />
+            <Route path="/borrower/add-transaction" element={<BorrowerAddTransaction />} />
           </Route>
 
           {/* Bank portal — login outside auth wall */}

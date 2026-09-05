@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     """Maximum retention window (in hours) for raw ephemeral data before
     mandatory purge, per PDPA No. 9 of 2022 Section 12 (Data Minimization)."""
 
+    transaction_retention_days: int = 30
+    """Maximum retention window (in days) for structured transaction data.
+    Supports monthly accounting cycles while raw media/PII retains the
+    shorter ``data_retention_hours`` window per PDPA Section 12."""
+
     consent_expiry_days: int = 365
     """TTL (in days) for a recorded consent record before it expires
     and must be re-authorised by the data subject."""

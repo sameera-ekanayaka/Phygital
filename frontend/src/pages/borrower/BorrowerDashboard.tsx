@@ -9,17 +9,33 @@ import {
   DollarSign,
   Loader2,
   AlertCircle,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Edit3,
+  Check,
+  X,
+  Calendar,
 } from "lucide-react";
 import {
   getTransactionSummary,
-  generateSessionCode,
+  getTransactions,
+  getMonthlySummary,
+  deleteTransaction,
+  updateTransaction,
+  generateReport,
   type TransactionSummaryResponse,
+  type TransactionListResponse,
+  type TransactionRecord,
+  type MonthlySummaryResponse,
 } from "../../services/api";
 
 interface DashboardState {
   loading: boolean;
   error: string | null;
   summary: TransactionSummaryResponse | null;
+  transactions: TransactionListResponse | null;
+  monthly: MonthlySummaryResponse | null;
 }
 
 function formatLKR(amount: number): string {
@@ -39,9 +55,24 @@ function formatDate(iso: string): string {
   });
 }
 
-function shortenId(id: string): string {
-  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
-}
+const FILTER_TABS = [
+  { key: "all", label: "All" },
+  { key: "business_revenue", label: "Revenue" },
+  { key: "business_expense", label: "Expenses" },
+  { key: "personal_expense", label: "Personal" },
+] as const;
+
+const TYPE_COLOR: Record<string, string> = {
+  business_revenue: "text-green-700",
+  business_expense: "text-orange-700",
+  personal_expense: "text-blue-700",
+};
+
+const TYPE_BG: Record<string, string> = {
+  business_revenue: "bg-green-100 text-green-700 border-green-200",
+  business_expense: "bg-orange-100 text-orange-700 border-orange-200",
+  personal_expense: "bg-blue-100 text-blue-700 border-blue-200",
+};
 
 export default function BorrowerDashboard() {
   const navigate = useNavigate();
@@ -49,34 +80,108 @@ export default function BorrowerDashboard() {
     loading: true,
     error: null,
     summary: null,
+    transactions: null,
+    monthly: null,
   });
   const [generating, setGenerating] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<{ amount: string; category: string; description: string }>({
+    amount: "",
+    category: "",
+    description: "",
+  });
+  const [showMonthly, setShowMonthly] = useState(false);
   const borrowerName = localStorage.getItem("phygital_borrower_name") ?? "Business Owner";
+
+  /* ── Fetch all data ──────────────────────────────────────────────── */
+  const fetchData = useCallback(async () => {
+    try {
+      const [summary, transactions, monthly] = await Promise.all([
+        getTransactionSummary(),
+        getTransactions(),
+        getMonthlySummary(),
+      ]);
+      return { summary, transactions, monthly };
+    } catch {
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const summary = await getTransactionSummary();
-        if (!cancelled) setState({ loading: false, error: null, summary });
-      } catch {
-        if (!cancelled)
-          setState({
-            loading: false,
-            error: "Unable to load your transaction summary. Please try again later.",
-            summary: null,
-          });
+      const result = await fetchData();
+      if (cancelled) return;
+      if (result) {
+        setState({ loading: false, error: null, ...result });
+      } else {
+        setState({ loading: false, error: "Unable to load your dashboard. Please try again later.", summary: null, transactions: null, monthly: null });
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+  }, [fetchData]);
+
+  /* ── Refetch helper (keeps existing data visible on error) ────── */
+  const refetch = useCallback(async () => {
+    const result = await fetchData();
+    if (result) {
+      setState((prev) => ({ ...prev, error: null, ...result }));
+    } else {
+      setState((prev) => ({ ...prev, error: "Failed to refresh data." }));
+    }
+  }, [fetchData]);
+
+  /* ── Delete ──────────────────────────────────────────────────────── */
+  const handleDelete = useCallback(async (id: string) => {
+    if (!window.confirm("Delete this transaction?")) return;
+    try {
+      await deleteTransaction(id);
+      await refetch();
+    } catch {
+      setState((prev) => ({ ...prev, error: "Failed to delete transaction." }));
+    }
+  }, [refetch]);
+
+  /* ── Edit ────────────────────────────────────────────────────────── */
+  const startEdit = useCallback((tx: TransactionRecord) => {
+    setEditingId(tx.id);
+    setEditDraft({ amount: String(tx.amount), category: tx.category, description: tx.description });
   }, []);
 
-  const handleGenerateCode = useCallback(async () => {
+  const cancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditDraft({ amount: "", category: "", description: "" });
+  }, []);
+
+  const saveEdit = useCallback(async () => {
+    if (!editingId) return;
+    const amountValue = Number(editDraft.amount);
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      setState((prev) => ({
+        ...prev,
+        error: "Amount must be a positive number.",
+      }));
+      return;
+    }
+    try {
+      await updateTransaction(editingId, {
+        amount: amountValue,
+        category: editDraft.category,
+        description: editDraft.description,
+      });
+      setEditingId(null);
+      await refetch();
+    } catch {
+      setState((prev) => ({ ...prev, error: "Failed to update transaction." }));
+    }
+  }, [editingId, editDraft, refetch]);
+
+  /* ── Generate report ─────────────────────────────────────────────── */
+  const handleGenerateReport = useCallback(async () => {
     setGenerating(true);
     try {
-      const response = await generateSessionCode();
+      const response = await generateReport();
       navigate("/borrower/processing", {
         state: {
           verificationCode: response.verification_code,
@@ -87,7 +192,7 @@ export default function BorrowerDashboard() {
       setGenerating(false);
       setState((prev) => ({
         ...prev,
-        error: "Failed to generate verification code. Please try again.",
+        error: "Failed to generate report. Please try again.",
       }));
     }
   }, [navigate]);
@@ -121,7 +226,7 @@ export default function BorrowerDashboard() {
     );
   }
 
-  const { summary } = state;
+  const { summary, transactions, monthly } = state;
   const isEmpty = !summary || summary.transaction_count === 0;
 
   /* ── Empty state ─────────────────────────────────────────────────── */
@@ -146,20 +251,35 @@ export default function BorrowerDashboard() {
             record a voice note, or type in your transactions.
           </p>
           <button
-            onClick={() => navigate("/borrower/upload")}
+            onClick={() => navigate("/borrower/add-transaction")}
             className="b-btn-primary text-base px-8 py-3"
           >
             <Plus className="w-4 h-4 shrink-0" />
-            Add Records
+            Add Transaction
           </button>
         </div>
+
+        {/* FAB */}
+        <button
+          onClick={() => navigate("/borrower/add-transaction")}
+          className="fixed bottom-20 right-6 sm:hidden w-14 h-14 rounded-full bg-teal text-white shadow-lg flex items-center justify-center hover:bg-teal/90 transition-colors z-50"
+          aria-label="Add transaction"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
       </div>
     );
   }
 
+  /* ── Filtered transaction list ───────────────────────────────────── */
+  const txItems = transactions?.items ?? [];
+  const filtered = activeFilter === "all"
+    ? txItems
+    : txItems.filter((t) => t.transaction_type === activeFilter);
+
   /* ── With transactions ───────────────────────────────────────────── */
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 pb-20 sm:pb-6">
       {/* Header */}
       <div className="b-fade-in-up">
         <h1 className="text-2xl md:text-3xl font-bold text-warm-900 font-display">
@@ -188,44 +308,57 @@ export default function BorrowerDashboard() {
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 b-fade-in-up" style={{ animationDelay: "0.1s" }}>
+      {/* Summary cards — 4 columns */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 b-fade-in-up" style={{ animationDelay: "0.1s" }}>
         {/* Total Revenue */}
-        <div className="b-card p-5 border-green-200 bg-green-50/60">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-green-600 shrink-0" />
-            <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">
-              Total Revenue
+        <div className="b-card p-4 border-green-200 bg-green-50/60 overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <TrendingUp className="w-4 h-4 text-green-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-green-700 uppercase tracking-wide">
+              Revenue
             </span>
           </div>
-          <p className="text-2xl font-bold text-green-800">
+          <p className="text-base sm:text-xl font-bold text-green-800 truncate">
             {formatLKR(summary.total_revenue)}
           </p>
         </div>
 
         {/* Total Expenses */}
-        <div className="b-card p-5 border-orange-200 bg-orange-50/60">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingDown className="w-5 h-5 text-orange-600 shrink-0" />
-            <span className="text-xs font-semibold text-orange-700 uppercase tracking-wide">
-              Total Expenses
+        <div className="b-card p-4 border-orange-200 bg-orange-50/60 overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <TrendingDown className="w-4 h-4 text-orange-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-orange-700 uppercase tracking-wide">
+              Expenses
             </span>
           </div>
-          <p className="text-2xl font-bold text-orange-800">
+          <p className="text-base sm:text-xl font-bold text-orange-800 truncate">
             {formatLKR(summary.total_expenses)}
           </p>
         </div>
 
         {/* Personal Expenses */}
-        <div className="b-card p-5 border-blue-200 bg-blue-50/60">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-5 h-5 text-blue-600 shrink-0" />
-            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-              Personal Expenses
+        <div className="b-card p-4 border-blue-200 bg-blue-50/60 overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <DollarSign className="w-4 h-4 text-blue-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-blue-700 uppercase tracking-wide">
+              Personal
             </span>
           </div>
-          <p className="text-2xl font-bold text-blue-800">
+          <p className="text-base sm:text-xl font-bold text-blue-800 truncate">
             {formatLKR(summary.total_personal)}
+          </p>
+        </div>
+
+        {/* Net Income */}
+        <div className="b-card p-4 border-violet-200 bg-violet-50/60 overflow-hidden">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <TrendingUp className="w-4 h-4 text-violet-600 shrink-0" />
+            <span className="text-[10px] sm:text-xs font-semibold text-violet-700 uppercase tracking-wide">
+              Net Income
+            </span>
+          </div>
+          <p className="text-base sm:text-xl font-bold text-violet-800 truncate">
+            {formatLKR(transactions?.net_income ?? (summary.total_revenue - summary.total_expenses))}
           </p>
         </div>
       </div>
@@ -238,51 +371,138 @@ export default function BorrowerDashboard() {
         </span>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto b-fade-in-up" style={{ animationDelay: "0.18s" }}>
+        {FILTER_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveFilter(tab.key)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+              activeFilter === tab.key
+                ? "bg-teal text-white shadow-sm"
+                : "bg-cream-100 text-warm-600 hover:bg-cream-200 border border-cream-300"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Transaction list */}
-      {summary.items.length > 0 && (
-        <div className="b-card p-5 md:p-6 b-fade-in-up" style={{ animationDelay: "0.2s" }}>
-          <h2 className="text-sm font-semibold text-warm-900 mb-4">Transaction Records</h2>
-          <div className="space-y-3">
-            {summary.items.map((item) => (
+      {filtered.length > 0 ? (
+        <div className="space-y-3 b-fade-in-up" style={{ animationDelay: "0.2s" }}>
+          {filtered.map((tx) => {
+            const isEditing = editingId === tx.id;
+            return (
               <div
-                key={item.request_id}
-                className="flex items-start gap-3 p-3 rounded-lg bg-cream-50 border border-cream-200"
+                key={tx.id}
+                className="b-card p-4 border-cream-200 hover:border-cream-300 transition-colors"
               >
-                <div className="w-8 h-8 rounded-lg bg-teal/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <FileText className="w-4 h-4 text-teal" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono text-warm-500 bg-cream-200 px-2 py-0.5 rounded">
-                      {shortenId(item.request_id)}
-                    </span>
-                    <span className="text-xs text-warm-500">
-                      {formatDate(item.processed_at)}
-                    </span>
+                {isEditing ? (
+                  /* ── Edit mode ───────────────────────────────────── */
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Edit3 className="w-4 h-4 text-teal" />
+                      <span className="text-xs font-semibold text-warm-900">Edit Transaction</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-medium text-warm-600 mb-1">Amount</label>
+                        <input
+                          type="number"
+                          className="b-input text-sm"
+                          value={editDraft.amount}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, amount: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-warm-600 mb-1">Category</label>
+                        <input
+                          type="text"
+                          className="b-input text-sm"
+                          value={editDraft.category}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, category: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-warm-600 mb-1">Description</label>
+                      <input
+                        type="text"
+                        className="b-input text-sm"
+                        value={editDraft.description}
+                        onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={saveEdit}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal text-white text-sm font-medium hover:bg-teal/90 transition-colors"
+                      >
+                        <Check className="w-4 h-4" />
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cream-200 text-warm-700 text-sm font-medium hover:bg-cream-300 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-sm text-warm-700 leading-relaxed line-clamp-2">
-                    {item.raw_text
-                      ? item.raw_text.slice(0, 120) + (item.raw_text.length > 120 ? "…" : "")
-                      : "Processed transaction record"}
-                  </p>
-                </div>
+                ) : (
+                  /* ── View mode ───────────────────────────────────── */
+                  <div className="flex items-start gap-3 cursor-pointer" onClick={() => startEdit(tx)}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`text-xl font-bold ${TYPE_COLOR[tx.transaction_type] ?? "text-warm-800"}`}>
+                          {formatLKR(tx.amount)}
+                        </span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${TYPE_BG[tx.transaction_type] ?? "bg-cream-100 text-warm-600 border-cream-300"}`}>
+                          {tx.category}
+                        </span>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-cream-200 text-warm-500">
+                          {tx.source === "ai_upload" ? "AI" : "Manual"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-warm-700 leading-relaxed line-clamp-2 mb-1">
+                        {tx.description || "No description"}
+                      </p>
+                      <p className="text-[11px] text-warm-500">
+                        {formatDate(tx.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
+                      className="shrink-0 w-8 h-8 rounded-lg bg-cream-100 border border-cream-200 flex items-center justify-center hover:bg-red-50 hover:border-red-200 transition-colors"
+                      aria-label="Delete transaction"
+                    >
+                      <Trash2 className="w-4 h-4 text-warm-500 hover:text-red-500" />
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="b-card p-8 text-center b-fade-in-up" style={{ animationDelay: "0.2s" }}>
+          <p className="text-sm text-warm-500">No transactions match this filter.</p>
         </div>
       )}
 
       {/* CTA Buttons */}
       <div className="flex flex-col sm:flex-row items-center gap-3 b-fade-in-up" style={{ animationDelay: "0.25s" }}>
         <button
-          onClick={() => navigate("/borrower/upload")}
-          className="flex-1 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
+          onClick={() => navigate("/borrower/add-transaction")}
+          className="hidden sm:inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-cream-300 bg-cream-50 text-warm-700 text-sm font-medium hover:bg-cream-100 transition-colors"
         >
           <Plus className="w-4 h-4 shrink-0" />
-          Add More Records
+          Add Transaction
         </button>
         <button
-          onClick={handleGenerateCode}
+          onClick={handleGenerateReport}
           disabled={generating}
           className="flex-1 w-full sm:w-auto b-btn-primary justify-center text-base px-6 py-3"
         >
@@ -294,17 +514,76 @@ export default function BorrowerDashboard() {
           ) : (
             <>
               <QrCode className="w-4 h-4 shrink-0" />
-              Generate Verification Code
+              Generate Report
             </>
           )}
         </button>
       </div>
 
+      {/* Monthly Summary — collapsible */}
+      {monthly && monthly.months.length > 0 && (
+        <div className="b-card b-fade-in-up" style={{ animationDelay: "0.28s" }}>
+          <button
+            onClick={() => setShowMonthly((v) => !v)}
+            className="w-full flex items-center justify-between p-5 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-teal" />
+              <span className="text-sm font-semibold text-warm-900">Monthly Summary</span>
+            </div>
+            {showMonthly ? (
+              <ChevronUp className="w-4 h-4 text-warm-500" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-warm-500" />
+            )}
+          </button>
+          {showMonthly && (
+            <div className="px-5 pb-5 border-t border-cream-200">
+              <div className="overflow-x-auto mt-3">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[11px] text-warm-500 uppercase tracking-wide">
+                      <th className="text-left pb-2 font-semibold">Month</th>
+                      <th className="text-right pb-2 font-semibold">Revenue</th>
+                      <th className="text-right pb-2 font-semibold">Expenses</th>
+                      <th className="text-right pb-2 font-semibold">Net</th>
+                      <th className="text-right pb-2 font-semibold">Count</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthly.months.map((m) => (
+                      <tr key={m.month} className="border-t border-cream-100">
+                        <td className="py-2 font-medium text-warm-800">{m.month}</td>
+                        <td className="py-2 text-right text-green-700">{formatLKR(m.revenue)}</td>
+                        <td className="py-2 text-right text-orange-700">{formatLKR(m.expenses)}</td>
+                        <td className={`py-2 text-right font-semibold ${m.net_income >= 0 ? "text-violet-700" : "text-red-600"}`}>
+                          {formatLKR(m.net_income)}
+                        </td>
+                        <td className="py-2 text-right text-warm-500">{m.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Privacy note */}
       <p className="text-center text-[11px] text-warm-600/50 leading-relaxed max-w-md mx-auto pb-2 b-fade-in-up" style={{ animationDelay: "0.3s" }}>
-        Your data is encrypted (AES-256) and automatically purged after 72 hours
+        Your data is encrypted (AES-256) and automatically purged after 30 days
         in compliance with PDPA regulations.
       </p>
+
+      {/* FAB — mobile only */}
+      <button
+        onClick={() => navigate("/borrower/add-transaction")}
+        className="fixed bottom-20 right-6 sm:hidden w-14 h-14 rounded-full bg-teal text-white shadow-lg flex items-center justify-center hover:bg-teal/90 transition-colors z-50"
+        aria-label="Add transaction"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </div>
   );
 }
