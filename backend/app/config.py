@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     # ── Cryptography ────────────────────────────────────────────────────────
-    secret_key: str
+    secret_key: str = "phygital_production_default_secret_key_2026_secure"
     """Symmetric key used for HMAC-SHA256 token signing."""
 
     # ── Redis ───────────────────────────────────────────────────────────────
@@ -43,14 +43,14 @@ class Settings(BaseSettings):
     """Time-to-live for JWT access tokens in minutes (default 8 hours)."""
 
     # ── Officer Auth ─────────────────────────────────────────────────────────
-    officer_credentials: str = "{}"
+    officer_credentials: str = '{"officer.perera":"PhygitalBank2026!"}'
     """JSON string mapping officer usernames to passwords for production auth."""
 
     # ── Application ─────────────────────────────────────────────────────────
     base_url: str = "https://phygital.lk"
     """Public base URL used when generating QR verification links."""
 
-    debug: bool = False
+    debug: bool = True
     """Enables verbose logging and permissive CORS when True."""
 
     # ── AI Services ────────────────────────────────────────────────────────
