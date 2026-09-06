@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 // Layouts
@@ -40,6 +40,9 @@ export default function App() {
         <Routes>
           {/* Global entry */}
           <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Navigate to="/borrower/login" replace />} />
+          <Route path="/dashboard" element={<Navigate to="/borrower/dashboard" replace />} />
+          <Route path="/verify" element={<Navigate to="/bank/verify" replace />} />
 
           {/* Borrower auth — outside auth wall */}
           <Route path="/borrower/login" element={<BorrowerLogin />} />
