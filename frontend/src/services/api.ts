@@ -166,9 +166,34 @@ export interface MonthlySummaryResponse {
 /*  Axios instance                                                     */
 /* ------------------------------------------------------------------ */
 
+export function normalizeApiBaseUrl(rawUrl?: string): string {
+  let url = (rawUrl || "").trim();
+
+  // If in browser on HTTPS and no URL is provided or it points to localhost,
+  // default to the live production Render backend to avoid mixed-content blocks
+  if (
+    !url ||
+    (typeof window !== "undefined" &&
+      window.location.protocol === "https:" &&
+      url.includes("localhost"))
+  ) {
+    url = "https://phygital-yjnc.onrender.com/api/v1";
+  }
+
+  // Strip trailing slashes
+  url = url.replace(/\/+$/, "");
+
+  // If URL doesn't end with /api/v1, ensure /api/v1 is appended
+  if (!url.endsWith("/api/v1")) {
+    url = `${url}/api/v1`;
+  }
+
+  return url;
+}
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1",
-  timeout: 30_000,
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL),
+  timeout: 60_000,
 });
 
 /* ------------------------------------------------------------------ */
