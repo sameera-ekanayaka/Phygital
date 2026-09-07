@@ -5,9 +5,10 @@ login, and profile retrieval.
 """
 
 import re
-from pydantic import BaseModel, Field, field_validator
-from app.core.validation import validate_sri_lankan_nic, validate_sri_lankan_phone
 
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.validation import validate_sri_lankan_nic, validate_sri_lankan_phone
 
 # ── Registration ─────────────────────────────────────────────────────────────
 

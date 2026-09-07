@@ -6,16 +6,14 @@ and direct unit tests for the scoring_engine module (DSCR, EMI, NCGI).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-
-import pytest
+from datetime import datetime, timedelta, timezone
 
 from app.services.scoring_engine import (
+    _MONTHLY_RATE,
+    _emi,
     compute_financial_metrics,
     derive_recommendation,
     generate_explainability_notes,
-    _emi,
-    _MONTHLY_RATE,
 )
 
 # ── Shared fixtures ──────────────────────────────────────────────────────────

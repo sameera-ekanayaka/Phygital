@@ -3,12 +3,12 @@
 import logging
 
 from fastapi import APIRouter, Depends
+from starlette.requests import Request
 
 from app.api.v1.ocr.schemas import OcrProcessRequest, OcrProcessResponse
 from app.api.v1.ocr.service import process_image
 from app.core.auth import get_current_user
 from app.core.limiter import limiter
-from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 

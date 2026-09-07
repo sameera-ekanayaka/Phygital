@@ -11,7 +11,12 @@ from datetime import datetime, timezone
 
 from fastapi import UploadFile
 
-from app.api.v1.ingest.schemas import IngestExtractionResponse, IngestResponse, StructuredExtraction, TransactionItem
+from app.api.v1.ingest.schemas import (
+    IngestExtractionResponse,
+    IngestResponse,
+    StructuredExtraction,
+    TransactionItem,
+)
 from app.services.ai_engine import (
     AIEngineService,
     extract_structured_data,

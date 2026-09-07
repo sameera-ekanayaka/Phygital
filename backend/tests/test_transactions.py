@@ -18,7 +18,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pytest
-
 from app.api.v1.ingest.schemas import (
     IngestResponse,
     StructuredExtraction,

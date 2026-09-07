@@ -7,7 +7,6 @@ for loan-officer review.
 
 import logging
 import statistics
-from typing import List
 
 from app.schemas.transaction import ExtractedTransaction
 
@@ -42,7 +41,7 @@ def _emi(principal: float, monthly_rate: float, tenor_months: int) -> float:
 
 
 def compute_financial_metrics(
-    transactions: List[ExtractedTransaction],
+    transactions: list[ExtractedTransaction],
     requested_loan_amount: float = 250_000.0,
     loan_tenor_months: int = 12,
     owner_demographics: dict | None = None,
@@ -159,9 +158,9 @@ def compute_financial_metrics(
 
 def generate_explainability_notes(
     metrics: dict,
-    transactions: List[ExtractedTransaction],
+    transactions: list[ExtractedTransaction],
     owner_demographics: dict | None = None,
-) -> List[str]:
+) -> list[str]:
     """Produce deterministic, human-readable explanation points.
 
     Args:
@@ -172,7 +171,7 @@ def generate_explainability_notes(
     Returns:
         A list of plain-English bullet-style strings.
     """
-    notes: List[str] = []
+    notes: list[str] = []
 
     # ── Agricultural pattern detection ────────────────────────────────────
     has_agricultural = any(
@@ -243,8 +242,8 @@ def generate_explainability_notes(
 
 
 def generate_anomaly_flags(
-    transactions: List[ExtractedTransaction],
-) -> List[str]:
+    transactions: list[ExtractedTransaction],
+) -> list[str]:
     """Flag statistical outliers and low-confidence items.
 
     Args:
@@ -253,7 +252,7 @@ def generate_anomaly_flags(
     Returns:
         A (possibly empty) list of human-readable anomaly descriptions.
     """
-    flags: List[str] = []
+    flags: list[str] = []
     if not transactions:
         return flags
 
@@ -290,8 +289,8 @@ def generate_anomaly_flags(
 
 def generate_field_interview_prompts(
     metrics: dict,
-    transactions: List[ExtractedTransaction],
-) -> List[dict]:
+    transactions: list[ExtractedTransaction],
+) -> list[dict]:
     """Generate contextual verification questions for the loan officer.
 
     Each prompt includes both English and Sinhala translations so the officer
@@ -305,7 +304,7 @@ def generate_field_interview_prompts(
         A list of dicts with ``english`` and ``sinhala`` keys.
     """
     categories = {t.category for t in transactions}
-    prompts: List[dict] = []
+    prompts: list[dict] = []
 
     # Prompt 1 — supply chain / inventory sourcing
     prompts.append({

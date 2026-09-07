@@ -6,9 +6,6 @@ consent recording → ephemeral data seeding → consent revocation → data pur
 
 from __future__ import annotations
 
-import pytest
-
-
 CONSENT_RECORD_URL = "/api/v1/consent/record"
 CONSENT_REVOKE_URL = "/api/v1/consent/revoke"
 AUDIT_LOG_URL = "/api/v1/consent/audit-log"
