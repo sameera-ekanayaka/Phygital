@@ -11,6 +11,8 @@ import statistics
 import uuid
 from datetime import datetime, timezone
 
+from fastapi import HTTPException
+
 from app.api.v1.dossier.schemas import (
     CreditDossierResponse,
     DossierCalculateRequest,
@@ -30,7 +32,6 @@ from app.services.scoring_engine import (
     generate_explainability_notes,
     generate_field_interview_prompts,
 )
-from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 

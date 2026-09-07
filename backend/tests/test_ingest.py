@@ -4,11 +4,8 @@ Mocks AI engine functions to verify endpoint behavior without
 making real API calls to Groq or Google Gemini.
 """
 
-from unittest.mock import AsyncMock, patch
 import io
-
-import pytest
-
+from unittest.mock import AsyncMock, patch
 
 # Mock structured extraction response
 MOCK_EXTRACTION = {

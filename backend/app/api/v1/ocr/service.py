@@ -10,15 +10,15 @@ import uuid
 from datetime import datetime, timezone
 
 import httpx
-
 from fastapi import HTTPException
+
 from app.api.v1.ocr.schemas import (
     CashFlowLineItem,
     CashFlowStatement,
     OcrProcessResponse,
 )
-from app.services.ai_engine import extract_structured_data, extract_text_from_image
 from app.core.url_validator import validate_image_url
+from app.services.ai_engine import extract_structured_data, extract_text_from_image
 
 logger = logging.getLogger(__name__)
 

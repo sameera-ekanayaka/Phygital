@@ -19,8 +19,10 @@ from app.api.v1.dossier.schemas import (
 )
 from app.api.v1.dossier.service import (
     calculate_dossier,
-    execute_loan as execute_loan_service,
     generate_dossier_with_qr,
+)
+from app.api.v1.dossier.service import (
+    execute_loan as execute_loan_service,
 )
 from app.core.auth import get_current_officer
 from app.core.limiter import limiter

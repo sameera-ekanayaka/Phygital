@@ -6,7 +6,6 @@ Sri Lanka PDPA No. 9 of 2022 Sections 12 and 14.
 """
 
 from datetime import datetime
-
 from typing import Literal
 
 from pydantic import BaseModel, Field

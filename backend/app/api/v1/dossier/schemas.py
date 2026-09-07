@@ -4,12 +4,11 @@ Defines the credit-dossier payload structure including financial metrics,
 explainability notes, anomaly flags, and the signed QR verification token.
 """
 
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.schemas.transaction import ExtractedTransaction
-
 
 # ── Requests ─────────────────────────────────────────────────────────────────
 
@@ -17,12 +16,12 @@ from app.schemas.transaction import ExtractedTransaction
 class DossierCalculateRequest(BaseModel):
     """Input payload for dossier calculation and generation endpoints."""
 
-    transactions: List[ExtractedTransaction]
+    transactions: list[ExtractedTransaction]
     requested_loan_amount: float = 250_000.0
     loan_tenor_months: int = 12
-    merchant_name: Optional[str] = None
-    merchant_id: Optional[str] = None
-    owner_demographics: Optional[dict] = None
+    merchant_name: str | None = None
+    merchant_id: str | None = None
+    owner_demographics: dict | None = None
 
 
 # DossierGenerateRequest is identical to DossierCalculateRequest.
@@ -62,12 +61,12 @@ class FieldInterviewPrompt(BaseModel):
 class CreditDossierResponse(BaseModel):
     """Complete credit dossier returned by the /calculate endpoint."""
 
-    merchant_name: Optional[str] = None
-    merchant_id: Optional[str] = None
+    merchant_name: str | None = None
+    merchant_id: str | None = None
     metrics: FinancialMetrics
-    explainability_notes: List[str]
-    anomaly_flags: List[str]
-    field_interview_prompts: List[FieldInterviewPrompt]
+    explainability_notes: list[str]
+    anomaly_flags: list[str]
+    field_interview_prompts: list[FieldInterviewPrompt]
     transaction_count: int
     avg_confidence: float = Field(ge=0.0, le=1.0)
     recommendation: Literal["APPROVE", "REVIEW", "DECLINE"]
@@ -91,7 +90,7 @@ class LoanExecutionRequest(BaseModel):
     officer_id: str
     approved_amount: float = Field(..., gt=0, description="Approved loan amount in LKR")
     interest_rate: float = Field(..., gt=0, le=100, description="Annual interest rate percentage")
-    interview_notes: List[str] = Field(default_factory=list, description="Officer's field interview notes")
+    interview_notes: list[str] = Field(default_factory=list, description="Officer's field interview notes")
 
 
 class LoanExecutionResponse(BaseModel):

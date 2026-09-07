@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from app.api.v1.ocr.schemas import (
     CashFlowLineItem,
     CashFlowStatement,

@@ -4,13 +4,12 @@ Defines the structured extraction output models and the API response envelope.
 """
 
 from datetime import datetime
-from typing import List, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 # Re-exported for backward compatibility — canonical definition lives here.
-from app.schemas.transaction import ExtractedTransaction  # noqa: F401
+from app.schemas.transaction import ExtractedTransaction
 
 
 class TransactionItem(BaseModel):
@@ -82,7 +81,7 @@ class IngestResponse(BaseModel):
 class IngestExtractionResponse(BaseModel):
     """Structured extraction result from the Day-2 AI translation pipeline."""
 
-    transactions: List[ExtractedTransaction] = []
+    transactions: list[ExtractedTransaction] = []
     """All financial transactions parsed from the input."""
 
     raw_transcript: str = ""
@@ -91,5 +90,5 @@ class IngestExtractionResponse(BaseModel):
     processing_time_ms: float = 0.0
     """Wall-clock time in milliseconds for the extraction call."""
 
-    triangulation_hints: List[str] = []
+    triangulation_hints: list[str] = []
     """Contextual hints for downstream fraud-detection / cross-referencing."""

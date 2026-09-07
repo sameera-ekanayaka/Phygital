@@ -11,12 +11,12 @@ import glob
 import json
 import logging
 import os
+from collections.abc import Callable
 from datetime import datetime, timezone
 from functools import partial
-from typing import Callable
 
 from app.config import get_settings
-from app.core.redis_client import delete_keys_by_pattern, get_redis, get_ttl
+from app.core.redis_client import delete_keys_by_pattern, get_redis
 
 logger = logging.getLogger(__name__)
 

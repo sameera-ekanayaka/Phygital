@@ -1,24 +1,19 @@
 """Tests for core validation utilities and schema validations."""
 
 import pytest
-from pydantic import ValidationError
-
+from app.api.v1.borrower_auth.schemas import (
+    BorrowerRegisterRequest,
+)
+from app.api.v1.transactions.schemas import (
+    TransactionCreateRequest,
+)
 from app.core.validation import (
     validate_sri_lankan_nic,
     validate_sri_lankan_phone,
     validate_transaction_amount,
     validate_uploaded_file,
 )
-from app.api.v1.borrower_auth.schemas import (
-    BorrowerRegisterRequest,
-    BorrowerLoginRequest,
-    OtpVerifyRequest,
-)
-from app.api.v1.transactions.schemas import (
-    TransactionCreateRequest,
-    TransactionUpdateRequest,
-)
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Sri Lankan NIC Validation

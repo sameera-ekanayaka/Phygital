@@ -10,7 +10,6 @@ import logging
 import secrets
 from datetime import datetime, timezone
 
-from app.config import get_settings
 from app.core.redis_client import get_redis
 
 logger = logging.getLogger(__name__)

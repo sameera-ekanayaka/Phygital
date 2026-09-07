@@ -6,7 +6,6 @@ Rate limits follow the same slowapi pattern used across the application.
 
 import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
@@ -65,8 +64,8 @@ async def create_transaction(
 
 @router.get("/", response_model=TransactionListResponse)
 async def list_transactions(
-    type: Optional[str] = Query(default=None, description="Filter by transaction_type"),
-    month: Optional[str] = Query(default=None, description="Filter by YYYY-MM"),
+    type: str | None = Query(default=None, description="Filter by transaction_type"),
+    month: str | None = Query(default=None, description="Filter by YYYY-MM"),
     current_user: dict = Depends(get_current_borrower),
 ) -> TransactionListResponse:
     """List all transactions for the authenticated borrower with optional filters.
