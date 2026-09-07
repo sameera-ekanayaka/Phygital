@@ -103,10 +103,14 @@ def register_borrower(
         logger.warning("Gender detection failed for NIC: %s", exc)
         gender = "unknown"
 
+    # Compute a masked display NIC (e.g. 89****3456V or 19****5678)
+    masked_nic = f"{data.nic[:2]}****{data.nic[-4:]}" if len(data.nic) >= 6 else "****----"
+
     borrower_record = json.dumps({
         "name": data.name,
         "phone": data.phone,
         "nic_hash": nic_hash,
+        "masked_nic": masked_nic,
         "password_hash": password_hash,
         "gender": gender,
         "liya_shakthi_member": data.liya_shakthi_member,
@@ -317,6 +321,15 @@ def seed_test_borrower() -> None:
     borrower_key = f"{_BORROWER_PREFIX}{nic_hash}"
 
     if client.exists(borrower_key):
+        try:
+            raw = client.get(borrower_key)
+            if raw:
+                rec = json.loads(raw)
+                if "masked_nic" not in rec or not rec.get("masked_nic"):
+                    rec["masked_nic"] = "89****3456V"
+                    client.setex(borrower_key, _BORROWER_TTL_SECONDS, json.dumps(rec))
+        except Exception:
+            pass
         logger.debug("Test borrower already exists: nic_hash=%s…", nic_hash[:12])
         return
 
@@ -332,6 +345,7 @@ def seed_test_borrower() -> None:
         "name": "Binithi Perera",
         "phone": phone,
         "nic_hash": nic_hash,
+        "masked_nic": "89****3456V",
         "password_hash": password_hash,
         "gender": gender,
         "liya_shakthi_member": True,

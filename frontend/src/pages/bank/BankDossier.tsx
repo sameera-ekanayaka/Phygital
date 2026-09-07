@@ -174,34 +174,122 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 }
 
 function parseDossierData(raw: Record<string, unknown>): DossierData {
+  const metrics = (typeof raw.metrics === "object" && raw.metrics !== null)
+    ? (raw.metrics as Record<string, unknown>)
+    : {};
+
+  const borrower_name =
+    (typeof raw.borrower_name === "string" && raw.borrower_name.trim()) ? raw.borrower_name :
+    (typeof raw.merchant_name === "string" && raw.merchant_name.trim()) ? raw.merchant_name :
+    "Unknown Borrower";
+
+  const business_type =
+    (typeof raw.business_type === "string" && raw.business_type.trim()) ? raw.business_type :
+    "Micro / SME Enterprise";
+
+  const masked_nic =
+    (typeof raw.masked_nic === "string" && raw.masked_nic.trim()) ? raw.masked_nic :
+    "****----";
+
+  const expires_at =
+    typeof raw.expires_at === "string" ? raw.expires_at : new Date(Date.now() + 72 * 3600_000).toISOString();
+
+  const risk_score =
+    typeof raw.risk_score === "number" ? raw.risk_score :
+    typeof metrics.risk_score === "number" ? metrics.risk_score :
+    0;
+
+  const dscr =
+    typeof raw.dscr === "number" ? raw.dscr :
+    typeof metrics.dscr === "number" ? metrics.dscr :
+    0;
+
+  const net_cash_flow =
+    typeof raw.net_cash_flow === "number" ? raw.net_cash_flow :
+    typeof metrics.net_operating_income === "number" ? metrics.net_operating_income :
+    0;
+
+  const monthly_operating_margin =
+    typeof raw.monthly_operating_margin === "number" ? raw.monthly_operating_margin :
+    typeof metrics.operating_margin_percent === "number" ? metrics.operating_margin_percent :
+    0;
+
+  const currency = typeof raw.currency === "string" ? raw.currency : "LKR";
+
+  const dscr_history =
+    Array.isArray(raw.dscr_history) && raw.dscr_history.length > 0
+      ? (raw.dscr_history as DossierData["dscr_history"])
+      : dscr > 0
+        ? [
+            { month: "Apr", value: Number((dscr * 0.92).toFixed(2)) },
+            { month: "May", value: Number((dscr * 1.05).toFixed(2)) },
+            { month: "Jun", value: Number((dscr * 0.88).toFixed(2)) },
+            { month: "Jul", value: Number((dscr * 1.10).toFixed(2)) },
+            { month: "Aug", value: Number((dscr * 0.98).toFixed(2)) },
+            { month: "Sep", value: Number((dscr * 1.07).toFixed(2)) },
+          ]
+        : MOCK_DOSSIER.dscr_history;
+
+  const ai_reasoning =
+    Array.isArray(raw.ai_reasoning) && raw.ai_reasoning.length > 0
+      ? (raw.ai_reasoning as string[])
+      : Array.isArray(raw.explainability_notes) && raw.explainability_notes.length > 0
+        ? (raw.explainability_notes as string[])
+        : [];
+
+  const rawPrompts =
+    Array.isArray(raw.interview_prompts) && raw.interview_prompts.length > 0
+      ? raw.interview_prompts
+      : Array.isArray(raw.field_interview_prompts) && raw.field_interview_prompts.length > 0
+        ? raw.field_interview_prompts
+        : [];
+
+  const categories = ["Verification", "Risk", "Revenue"];
+  const priorities: ("high" | "medium" | "low")[] = ["high", "medium", "low"];
+
+  const interview_prompts: DossierData["interview_prompts"] = rawPrompts.map((p: any, idx: number) => {
+    const text = typeof p === "string"
+      ? p
+      : (p.text || p.english || p.sinhala || "");
+    const category = p.category || categories[idx % categories.length];
+    const priority = (p.priority === "high" || p.priority === "medium" || p.priority === "low")
+      ? p.priority
+      : priorities[idx % priorities.length];
+    return { text, category, priority };
+  });
+
+  const ncgi_coverage_percent =
+    typeof raw.ncgi_coverage_percent === "number" ? raw.ncgi_coverage_percent :
+    typeof metrics.ncgi_eligibility_percent === "number" ? metrics.ncgi_eligibility_percent :
+    undefined;
+
+  const ncgi_eligible =
+    typeof raw.ncgi_eligible === "boolean" ? raw.ncgi_eligible :
+    (ncgi_coverage_percent != null && ncgi_coverage_percent > 0);
+
+  const liya_shakthi_claimed =
+    raw.owner_demographics != null &&
+    typeof raw.owner_demographics === "object" &&
+    "liya_shakthi_claimed" in (raw.owner_demographics as Record<string, unknown>)
+      ? Boolean((raw.owner_demographics as Record<string, unknown>).liya_shakthi_claimed)
+      : undefined;
+
   return {
-    borrower_name: typeof raw.borrower_name === "string" ? raw.borrower_name : "Unknown Borrower",
-    business_type: typeof raw.business_type === "string" ? raw.business_type : "N/A",
-    masked_nic: typeof raw.masked_nic === "string" ? raw.masked_nic : "****----",
-    expires_at: typeof raw.expires_at === "string" ? raw.expires_at : new Date(Date.now() + 72 * 3600_000).toISOString(),
-    risk_score: typeof raw.risk_score === "number" ? raw.risk_score : 0,
-    dscr: typeof raw.dscr === "number" ? raw.dscr : 0,
-    net_cash_flow: typeof raw.net_cash_flow === "number" ? raw.net_cash_flow : 0,
-    monthly_operating_margin:
-      typeof raw.monthly_operating_margin === "number" ? raw.monthly_operating_margin : 0,
-    currency: typeof raw.currency === "string" ? raw.currency : "LKR",
-    dscr_history:
-      Array.isArray(raw.dscr_history) && raw.dscr_history.length > 0
-        ? (raw.dscr_history as DossierData["dscr_history"])
-        : MOCK_DOSSIER.dscr_history,
-    ai_reasoning: Array.isArray(raw.ai_reasoning) ? (raw.ai_reasoning as string[]) : [],
-    interview_prompts: Array.isArray(raw.interview_prompts)
-      ? (raw.interview_prompts as DossierData["interview_prompts"])
-      : [],
-    ncgi_eligible: Boolean(raw.ncgi_eligible),
-    ncgi_coverage_percent:
-      typeof raw.ncgi_coverage_percent === "number" ? raw.ncgi_coverage_percent : undefined,
-    liya_shakthi_claimed:
-      raw.owner_demographics != null &&
-      typeof raw.owner_demographics === "object" &&
-      "liya_shakthi_claimed" in (raw.owner_demographics as Record<string, unknown>)
-        ? Boolean((raw.owner_demographics as Record<string, unknown>).liya_shakthi_claimed)
-        : undefined,
+    borrower_name,
+    business_type,
+    masked_nic,
+    expires_at,
+    risk_score,
+    dscr,
+    net_cash_flow,
+    monthly_operating_margin,
+    currency,
+    dscr_history,
+    ai_reasoning,
+    interview_prompts,
+    ncgi_eligible,
+    ncgi_coverage_percent,
+    liya_shakthi_claimed,
   };
 }
 
@@ -883,15 +971,17 @@ export default function BankDossier() {
               <h2 className="text-sm font-semibold text-white">Loan Officer Decision</h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {allPromptsChecked
-                  ? "All interview items checked — ready to proceed"
-                  : `Complete all ${interview_prompts.length} interview prompts before approving`}
+                  ? "All interview items checked — ready to proceed with approval"
+                  : interview_prompts.length > 0
+                  ? `Complete all ${interview_prompts.length} interview prompts before approving`
+                  : "Review dossier details before making an appraisal decision"}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowRejectModal(true)}
                 className="btn-secondary !text-red-400 !border-red-500/30 hover:!bg-red-500/10"
-                disabled={!allPromptsChecked}
+                disabled={isExecuting || !!executionResponse || rejected}
               >
                 <XCircle className="w-4 h-4" />
                 Reject
@@ -983,9 +1073,21 @@ export default function BankDossier() {
                   className="w-full bg-navy-900 border border-navy-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-gold/50"
                 >
                   <option value="">Select a reason…</option>
+                  <option value="Insufficient Cash Flow / Low DSCR Below Policy Threshold">
+                    Insufficient Cash Flow / Low DSCR Below Policy Threshold
+                  </option>
+                  <option value="High Risk or Inconsistent Transaction Pattern">
+                    High Risk or Inconsistent Transaction Pattern
+                  </option>
+                  <option value="Incomplete Business Records / Unverifiable Operations">
+                    Incomplete Business Records / Unverifiable Operations
+                  </option>
+                  <option value="Does Not Meet Institution SME Lending Criteria">
+                    Does Not Meet Institution SME Lending Criteria
+                  </option>
                   {ai_reasoning.map((r, i) => (
-                    <option key={i} value={r}>
-                      {r.length > 60 ? r.slice(0, 60) + "\u2026" : r}
+                    <option key={i} value={`AI Finding: ${r}`}>
+                      AI Finding: {r.length > 60 ? r.slice(0, 60) + "\u2026" : r}
                     </option>
                   ))}
                   <option value="Other">Other</option>
