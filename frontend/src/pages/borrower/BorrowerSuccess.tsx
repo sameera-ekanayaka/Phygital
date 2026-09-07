@@ -65,7 +65,7 @@ export default function BorrowerSuccess() {
             Verification Code
           </p>
           <p className="text-3xl md:text-4xl font-mono font-bold b-shimmer tracking-widest select-all">
-            {state.verificationCode}
+            {verificationCode}
           </p>
         </div>
 

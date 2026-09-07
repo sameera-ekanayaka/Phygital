@@ -1198,3 +1198,58 @@ class TestTransactionRoutes:
 
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Borrower access required"
+
+    def test_generate_code_contains_scoring_and_demographics(self, client) -> None:
+        """POST /generate-code generates real-time computed dossier data with demographics."""
+        borrower = _borrower_id()
+        from app.core.redis_client import get_redis
+        import json
+        r = get_redis()
+        r.set(
+            f"phygital:borrower:{borrower}",
+            json.dumps({
+                "name": "Binithi Perera",
+                "phone": "0771234567",
+                "gender": "female",
+                "masked_nic": "89****3456V",
+                "liya_shakthi_member": True,
+                "verified": True,
+            }),
+        )
+
+        add_transaction(
+            borrower,
+            _create_request(amount=50_000.0, transaction_type="business_revenue", category="sales"),
+        )
+        add_transaction(
+            borrower,
+            _create_request(amount=10_000.0, transaction_type="business_expense", category="inventory"),
+        )
+
+        resp = client.post(
+            f"{BASE_URL}/generate-code", headers=_auth_headers(borrower)
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        code = data["verification_code"]
+        token = data["token"]
+        assert code.startswith("PHYG-")
+
+        # Verify via QR verify endpoint (as bank officer)
+        officer_token = create_access_token(subject="officer.test", role="officer")
+        v_resp = client.get(
+            f"/api/v1/verification/verify/{token}",
+            headers={"Authorization": f"Bearer {officer_token}"},
+        )
+        assert v_resp.status_code == 200, v_resp.text
+        cf_data = v_resp.json()["cash_flow_data"]
+        assert cf_data["borrower_name"] == "Binithi Perera"
+        assert cf_data["masked_nic"] == "89****3456V"
+        assert "Women-Owned" in cf_data["business_type"]
+        assert cf_data["dscr"] > 0
+        assert cf_data["risk_score"] > 0
+        assert cf_data["net_cash_flow"] == 40_000.0
+        assert len(cf_data["ai_reasoning"]) > 0
+        assert len(cf_data["interview_prompts"]) > 0
+        assert len(cf_data["dscr_history"]) == 6
+

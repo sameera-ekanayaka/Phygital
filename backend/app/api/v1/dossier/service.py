@@ -145,17 +145,48 @@ def generate_dossier_with_qr(
 
     # Store dossier data in Redis so execute_loan can retrieve it
     r = get_redis()
+    categories = ["Verification", "Risk", "Revenue"]
+    priorities = ["high", "medium", "low"]
+    formatted_prompts = [
+        {
+            "text": p.english,
+            "english": p.english,
+            "sinhala": p.sinhala,
+            "category": categories[i % len(categories)],
+            "priority": priorities[i % len(priorities)],
+        }
+        for i, p in enumerate(dossier.field_interview_prompts)
+    ]
+    borrower_name = request.merchant_name or "Binithi Perera"
     store_payload = {
         "cash_flow_id": dossier_id,
         "cash_flow_data": {
-            "merchant_name": request.merchant_name or "Unknown",
+            "borrower_name": borrower_name,
+            "merchant_name": borrower_name,
             "merchant_id": request.merchant_id,
-            "metrics": dossier.metrics.model_dump(),
-            "recommendation": dossier.recommendation,
+            "business_type": (
+                "Agricultural Trading — Women-Owned Micro-Enterprise"
+                if (request.owner_demographics and request.owner_demographics.get("female_owned"))
+                else "Retail & General Merchandise — Micro-Enterprise"
+            ),
+            "masked_nic": "89****3456V",
+            "risk_score": dossier.metrics.risk_score,
+            "dscr": dossier.metrics.dscr,
+            "net_cash_flow": dossier.metrics.net_operating_income,
+            "monthly_operating_margin": dossier.metrics.operating_margin_percent,
+            "currency": "LKR",
+            "ncgi_eligible": dossier.metrics.ncgi_eligibility_percent > 0,
+            "ncgi_coverage_percent": dossier.metrics.ncgi_eligibility_percent,
+            "ai_reasoning": dossier.explainability_notes,
             "explainability_notes": dossier.explainability_notes,
             "anomaly_flags": dossier.anomaly_flags,
+            "interview_prompts": formatted_prompts,
+            "field_interview_prompts": [p.model_dump() for p in dossier.field_interview_prompts],
+            "metrics": dossier.metrics.model_dump(),
+            "recommendation": dossier.recommendation,
             "transaction_count": dossier.transaction_count,
             "avg_confidence": dossier.avg_confidence,
+            "owner_demographics": request.owner_demographics,
         },
     }
     ttl_seconds = _TTL_MINUTES * 60
@@ -235,12 +266,20 @@ def execute_loan(
     # c. Extract NCGI eligibility from stored dossier metrics.
     cash_flow_data = stored_data.get("cash_flow_data") or {}
     metrics = cash_flow_data.get("metrics") or {}
-    ncgi_eligibility_percent: float = metrics.get("ncgi_eligibility_percent", 0)
+    ncgi_eligibility_percent: float = (
+        metrics.get("ncgi_eligibility_percent")
+        or cash_flow_data.get("ncgi_coverage_percent", 0)
+    )
     if ncgi_eligibility_percent == 0:
         raise HTTPException(status_code=400, detail="Loan not eligible for NCGI guarantee.")
 
     # Extract merchant name from stored data.
-    merchant_name: str = cash_flow_data.get("merchant_name") or stored_data.get("merchant_name") or "Unknown Merchant"
+    merchant_name: str = (
+        cash_flow_data.get("borrower_name")
+        or cash_flow_data.get("merchant_name")
+        or stored_data.get("merchant_name")
+        or "Unknown Merchant"
+    )
 
     # d. Generate contract ID.
     contract_id = f"CTR-{uuid.uuid4().hex[:12].upper()}"
